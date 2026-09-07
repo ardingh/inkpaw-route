@@ -1,0 +1,110 @@
+name: 自动更新规则并同步缓存
+
+on:
+  # 新版生成器进入 main 后，立即用该版本重新生成并提交正式配置。
+  push:
+    branches:
+      - main
+    paths:
+      - 'update_rules.py'
+      - 'shadowrocket/**'
+      - 'templates/**'
+      - 'checks/**'
+      - 'requirements.txt'
+      - 'rules/claude/**'
+      - 'rules/domestic/**'
+      - 'rules/openai/official-extra.list'
+      - 'rules/openai/compatibility-baseline.list'
+      - '.github/workflows/update-rules.yml'
+  # 每天北京时间 08:08 自动运行（UTC 00:08）
+  schedule:
+    - cron: '8 0 * * *'
+  # 允许手动触发执行
+  workflow_dispatch:
+
+# 必须开启写入权限，否则无法将变动 push 回仓库
+permissions:
+  contents: write
+  issues: write
+
+# 同一分支的定时与手动更新串行执行，避免并发写入规则和缓存。
+concurrency:
+  group: update-rules-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          # 获取完整历史，确保提交顺畅
+          fetch-depth: 0
+
+      - name: 设置 Python 环境
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.10'
+
+      - name: 安装依赖
+        run: |
+          python -m pip install --requirement requirements.txt
+
+      - name: 运行生成器单元测试
+        run: |
+          python -m unittest discover -s tests -v
+
+      - name: 执行更新脚本
+        run: |
+          python update_rules.py --no-backup --report build-status.json
+
+      - name: 校验生成后的规则文件
+        run: |
+          python update_rules.py --validate-config custom_shadowrocket_rules.conf
+
+      - name: 用户分流场景验收
+        run: python -m shadowrocket --audit-config custom_shadowrocket_rules.conf
+
+      - name: 自动提交变动 (包含缓存目录)
+        uses: stefanzweifel/git-auto-commit-action@4a55954c782fc1ea30b9056cd3e7a2b40ca8887d # v7
+        with:
+          commit_message: "Auto-update rules and sync cache [skip ci]"
+          # CI 依赖 Git 历史，不再新增时间戳备份；只同步最终配置、缓存和审计产物。
+          file_pattern: 'custom_shadowrocket_rules.conf backups/rules_cache/* rules/openai/generated.list build-status.json'
+          # 如果没有文件变动，不报错也不提交
+          skip_dirty_check: false
+          commit_user_name: github-actions[bot]
+          commit_user_email: github-actions[bot]@users.noreply.github.com
+
+      - name: 按本次构建结果更新预警
+        if: always()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          BUILD_OUTCOME: ${{ job.status }}
+        with:
+          script: |
+            const fs = require('fs');
+            const title = '规则更新异常：正在保留有效配置或使用缓存';
+            const failed = process.env.BUILD_OUTCOME !== 'success';
+            const report = !failed && fs.existsSync('build-status.json')
+              ? JSON.parse(fs.readFileSync('build-status.json', 'utf8')) : null;
+            const degraded = !report || report.status !== 'healthy';
+            const repo = {owner: context.repo.owner, repo: context.repo.repo};
+            const issues = await github.paginate(github.rest.issues.listForRepo,
+              {...repo, state: 'open', per_page: 100});
+            const existing = issues.find(i => !i.pull_request && i.title === title);
+            const run = `${context.serverUrl}/${repo.owner}/${repo.repo}/actions/runs/${context.runId}`;
+            if (failed || degraded) {
+              const cached = (report?.sources || []).filter(s => s.mode !== 'online')
+                .map(s => `- ${s.name}: ${s.mode}`).join('\n');
+              const body = [failed ? '本次更新失败；请检查日志。最后成功提交的配置仍可订阅。'
+                : '本次配置已生成，但以下来源使用缓存：', cached, '', `运行记录：${run}`].join('\n');
+              if (existing) await github.rest.issues.update({...repo, issue_number: existing.number, body});
+              else await github.rest.issues.create({...repo, title, body});
+            } else if (existing) {
+              await github.rest.issues.update({...repo, issue_number: existing.number,
+                state: 'closed', body: `全部来源在线，本次生成和提交成功。\n\n运行记录：${run}`});
+            }

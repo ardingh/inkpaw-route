@@ -1,0 +1,201 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-07T21:27:12.264826+00:00",
+  "status": "healthy",
+  "generator_sha256": "c5a2f723986714786129d1e2a58af84140a494de482333e45afb81e6371d28b5",
+  "config_sha256": "d0ea06b1ed1029e2a9497d2a4bba0ed4cddd4bdd933481153daaefc77126fd13",
+  "sources": [
+    {
+      "name": "Johnshall",
+      "url": "https://johnshall.github.io/Shadowrocket-ADBlock-Rules-Forever/sr_cnip_ad.conf",
+      "mode": "online",
+      "sha256": "8b7e3978f15e46468e54aa367ab7e182df7cca058981e17abd614635e2cb81bc"
+    },
+    {
+      "name": "WeChat",
+      "url": "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/WeChat/WeChat.list",
+      "mode": "online",
+      "sha256": "c48cebb11ccc41a56a22560b83c64bf0efdf9c598128da3771f36fe591a0924e"
+    },
+    {
+      "name": "WeType",
+      "url": "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/WeType/WeType.list",
+      "mode": "online",
+      "sha256": "fe25f3bdc8daa5aef719a8a1ac17ca594daaabfe9e1366dcf8e75d27b29702d7"
+    },
+    {
+      "name": "Zhihu",
+      "url": "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Zhihu/Zhihu.list",
+      "mode": "online",
+      "sha256": "450c53b3762b1aa2f63631f8d07c7237338c8c691aeb475ed07583cfea9d5e33"
+    },
+    {
+      "name": "Weibo",
+      "url": "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Weibo/Weibo.list",
+      "mode": "online",
+      "sha256": "54f8a08d7f89498f4f5ec29737c0c82feff1c69faadbd0d4722e1cbd72156f75"
+    },
+    {
+      "name": "DouBan",
+      "url": "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/DouBan/DouBan.list",
+      "mode": "online",
+      "sha256": "49b368896f4e38f4a31ac911b8e13fee923575884afe0d27a3cb1a0735551742"
+    },
+    {
+      "name": "ByteDance",
+      "url": "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/ByteDance/ByteDance.list",
+      "mode": "online",
+      "sha256": "d57724eb07b6efbacf4d3cc73fa22a71db20170d6a14aa76d46fba5de105fca2"
+    },
+    {
+      "name": "DouYin",
+      "url": "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/DouYin/DouYin.list",
+      "mode": "online",
+      "sha256": "020e742fe4a7084268af6aa52c4153bf5bfd54c4d7a17466f42cd3461609e32a"
+    },
+    {
+      "name": "BiliBili",
+      "url": "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/BiliBili/BiliBili.list",
+      "mode": "online",
+      "sha256": "9b22a7bdf97792346bf480771841b6cd1097ec7ad034b34528c14f3798107854"
+    },
+    {
+      "name": "XiaoHongShu",
+      "url": "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/XiaoHongShu/XiaoHongShu.list",
+      "mode": "online",
+      "sha256": "9fb20e80dc0962cfdf410ffbd72d6bf2a6a0ac0d930951880f98164ff229e8ff"
+    },
+    {
+      "name": "NetEaseMusic",
+      "url": "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/NetEaseMusic/NetEaseMusic.list",
+      "mode": "online",
+      "sha256": "da8638a8414224a63dd29d7b45446956ed98c67f88d3b530c80b6c978191fc09"
+    },
+    {
+      "name": "Himalaya",
+      "url": "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Himalaya/Himalaya.list",
+      "mode": "online",
+      "sha256": "6fa0483ce4beb3fb2e9ef0dfcef08f2d7ada0f253abbe9e96035810d328a362e"
+    },
+    {
+      "name": "JingDong",
+      "url": "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/JingDong/JingDong.list",
+      "mode": "online",
+      "sha256": "0b7a01784c5dfdb1a18d9051f4872c4078c6d5deb6a24f71bfe2bc06d96bb02a"
+    },
+    {
+      "name": "Pinduoduo",
+      "url": "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Pinduoduo/Pinduoduo.list",
+      "mode": "online",
+      "sha256": "fcddc414628d2a336b6ef3394eae6d17d6588ad0043ce60486b2c31be57291d0"
+    },
+    {
+      "name": "XianYu",
+      "url": "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/XianYu/XianYu.list",
+      "mode": "online",
+      "sha256": "a2b83429d47b68eee901ece76441f0d3cb8ae6ce671f9d7dc9f474777bd2b205"
+    },
+    {
+      "name": "SMZDM",
+      "url": "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/SMZDM/SMZDM.list",
+      "mode": "online",
+      "sha256": "326a5022fbd81d1fd21fbcc253376ccfc3b37fe6254eaea5ea5b3e876c8548ad"
+    },
+    {
+      "name": "MeiTuan",
+      "url": "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/MeiTuan/MeiTuan.list",
+      "mode": "online",
+      "sha256": "5c621dd07aa573761eb712c220631047a3c284297dc8d1830dfa62dab7b2d7ca"
+    },
+    {
+      "name": "CaiNiao",
+      "url": "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/CaiNiao/CaiNiao.list",
+      "mode": "online",
+      "sha256": "3f65c4298a26f42bd6f11b801924597d6a6de6efba63e8b87b2d3c654170abd8"
+    },
+    {
+      "name": "AliPay",
+      "url": "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/AliPay/AliPay.list",
+      "mode": "online",
+      "sha256": "23d7ca5404f4795d485b4ea700f45e1d94f2dbf0f2871eeca5298cfce81ff5be"
+    },
+    {
+      "name": "CMB",
+      "url": "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/CMB/CMB.list",
+      "mode": "online",
+      "sha256": "f74e32d571eb603904e33e5cd965c820063c60ab9b1bc9439df588aeac39fea6"
+    },
+    {
+      "name": "ICBC",
+      "url": "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/ICBC/ICBC.list",
+      "mode": "online",
+      "sha256": "24021bd1f25cf7457211197ba9ee8d60e4607d2a72d7fda6686c6616d89234c8"
+    },
+    {
+      "name": "CCB",
+      "url": "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/CCB/CCB.list",
+      "mode": "online",
+      "sha256": "359b1c5f978e63fe77cc69a847d5abaa6e14fd77f27889ef9522d2f266008559"
+    },
+    {
+      "name": "EastMoney",
+      "url": "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/EastMoney/EastMoney.list",
+      "mode": "online",
+      "sha256": "36e47718cb5b723d7e16ef08f83262d6a9876cca7bf18afd9b993bdeb7ad4d1a"
+    },
+    {
+      "name": "DiDi",
+      "url": "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/DiDi/DiDi.list",
+      "mode": "online",
+      "sha256": "9d5739b3946601d1251388dcbbaa0cf52795d0f19b37d11f2fed4db11ee89e74"
+    },
+    {
+      "name": "XieCheng",
+      "url": "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/XieCheng/XieCheng.list",
+      "mode": "online",
+      "sha256": "a1bb4db8f750704786a525279eb7f87f38db436047fc65a121239765ffe4d186"
+    },
+    {
+      "name": "12306",
+      "url": "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/12306/12306.list",
+      "mode": "online",
+      "sha256": "ea721ee413f28c6b338c0777d52a9e0b66f5da0cbb9abb5a54a2cf82f5c21007"
+    },
+    {
+      "name": "Baidu",
+      "url": "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/Baidu/Baidu.list",
+      "mode": "online",
+      "sha256": "ac49361bba37ccd12f46dff78885ef07218d9dc9deb254d71d1c0431a7eb921a"
+    },
+    {
+      "name": "ChinaMobile",
+      "url": "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/ChinaMobile/ChinaMobile.list",
+      "mode": "online",
+      "sha256": "52350f15a9fca3e992b337043741b7c5d57f5b64a0aa1cf3ea68147bce8b8dcb"
+    },
+    {
+      "name": "ChinaTelecom",
+      "url": "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/ChinaTelecom/ChinaTelecom.list",
+      "mode": "online",
+      "sha256": "b804b6a6b87a3b0ab250445b205a735a394acd6e0d9c6c4c77fd21ebac854027"
+    },
+    {
+      "name": "115",
+      "url": "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/115/115.list",
+      "mode": "online",
+      "sha256": "8c34b0b76e9055d100d1fa660591f4ebf666ff36371b9ad65a9ded91ff0f2876"
+    },
+    {
+      "name": "OpenAI blackmatrix7",
+      "url": "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/OpenAI/OpenAI.list",
+      "mode": "online",
+      "sha256": "6f4047cdbf6953cf5d9b38c4ccd6da7bc6f1acb91b7a87134f25d5b8f5d2408b"
+    },
+    {
+      "name": "OpenAI MetaCubeX",
+      "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/openai.json",
+      "mode": "online",
+      "sha256": "28d820ac061ce5f7c8a6cfdf75dc6eed92cf04650a5b91221dcae60d42273bcd"
+    }
+  ]
+}

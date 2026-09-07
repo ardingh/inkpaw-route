@@ -1,0 +1,1653 @@
+import os
+import time
+import datetime
+import hashlib
+import json
+import re
+import tempfile
+import threading
+import unittest
+from contextlib import ExitStack
+from pathlib import Path
+from unittest import mock
+
+import requests
+
+from shadowrocket import policy as m_policy
+from shadowrocket import validation as m_validation
+from shadowrocket import sources as m_sources
+from shadowrocket import storage as m_storage
+from shadowrocket import build as m_build
+
+FIXTURES = Path(__file__).parent / "fixtures"
+
+
+def first_embedded_domain_policy(config, hostname):
+    """Return the first locally embedded domain rule policy for hostname."""
+    _, _, rule_block = m_validation._johnshall_rule_block(config, "Generated fixture")
+    hostname = hostname.lower().rstrip(".")
+
+    for raw_line in rule_block.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = [part.strip() for part in line.split(",")]
+        rule_type = parts[0].upper()
+        if rule_type == "DOMAIN" and hostname == parts[1].lower().rstrip("."):
+            return parts[2]
+        if rule_type == "DOMAIN-SUFFIX":
+            suffix = parts[1].lower().rstrip(".")
+            if hostname == suffix or hostname.endswith(f".{suffix}"):
+                return parts[2]
+        if rule_type == "DOMAIN-KEYWORD" and parts[1].lower() in hostname:
+            return parts[2]
+        if rule_type == "FINAL":
+            return parts[1]
+    return None
+
+
+def openai_embedded_block(config):
+    start = config.index("# OpenAI (使用节点:")
+    end = config.index("# GitHub Copilot & Codex (使用节点:", start)
+    return config[start:end]
+
+
+class FakeResponse:
+    def __init__(
+        self,
+        content,
+        status_code=200,
+        content_type="text/plain; charset=utf-8",
+        url=None,
+    ):
+        self.content = content.encode("utf-8") if isinstance(content, str) else content
+        self.status_code = status_code
+        self.headers = {"content-type": content_type}
+        self.url = url
+        self.closed = False
+
+    def iter_content(self, chunk_size):
+        for start in range(0, len(self.content), chunk_size):
+            yield self.content[start : start + chunk_size]
+
+    def close(self):
+        self.closed = True
+
+
+class RuleGeneratorTests(unittest.TestCase):
+    @staticmethod
+    def offline_response(*args, **kwargs):
+        raise requests.ConnectionError("fixture offline")
+
+    @classmethod
+    def setUpClass(cls):
+        cls.provider_content = (FIXTURES / "provider.list").read_text(encoding="utf-8")
+        cls.johnshall_content = (FIXTURES / "johnshall.conf").read_text(encoding="utf-8")
+        cls.openai_blackmatrix_content = (
+            FIXTURES / "openai_blackmatrix.list"
+        ).read_text(
+            encoding="utf-8"
+        )
+        cls.openai_metacubex_content = (
+            FIXTURES / "openai_metacubex.json"
+        ).read_text(
+            encoding="utf-8"
+        )
+
+    def online_response(
+        self,
+        url,
+        timeout,
+        johnshall_content=None,
+        *,
+        stream=False,
+        allow_redirects=False,
+    ):
+        self.assertEqual(
+            timeout,
+            (m_policy.SOURCE_CONNECT_TIMEOUT_SECONDS, m_policy.SOURCE_TIMEOUT_SECONDS),
+        )
+        self.assertTrue(stream)
+        self.assertTrue(allow_redirects)
+        if url == m_policy.openai_blackmatrix_url:
+            return FakeResponse(self.openai_blackmatrix_content)
+        if url == m_policy.openai_metacubex_url:
+            return FakeResponse(
+                self.openai_metacubex_content,
+                content_type="application/json; charset=utf-8",
+            )
+        if url == m_policy.johnshall_url:
+            return FakeResponse(johnshall_content or self.johnshall_content)
+        return FakeResponse(self.provider_content)
+
+    def relaxed_build_context(self, response_side_effect):
+        stack = ExitStack()
+        stack.enter_context(
+            mock.patch.object(requests, "get", side_effect=response_side_effect)
+        )
+        stack.enter_context(mock.patch.object(m_policy, "MIN_JOHNSHALL_RULES", 1))
+        stack.enter_context(mock.patch.object(m_policy, "MIN_GENERATED_RULES", 1))
+        stack.enter_context(mock.patch.object(m_policy, "OPENAI_MIN_MERGED_RULES", 1))
+        stack.enter_context(mock.patch.object(m_policy, "SOURCE_BASELINE_RULE_COUNTS", {}))
+        stack.enter_context(mock.patch.object(m_policy, "SOURCE_DOWNLOAD_ATTEMPTS", 1))
+        return stack
+
+    def write_complete_offline_cache(self, cache_dir):
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        (cache_dir / "OpenAI_blackmatrix7.list").write_text(
+            self.openai_blackmatrix_content, encoding="utf-8"
+        )
+        (cache_dir / "OpenAI_MetaCubeX.json").write_text(
+            self.openai_metacubex_content, encoding="utf-8"
+        )
+        (cache_dir / "johnshall_latest.conf").write_text(
+            self.johnshall_content, encoding="utf-8"
+        )
+        for name in m_policy.domestic_lists:
+            (cache_dir / f"{name}.list").write_text(
+                self.provider_content, encoding="utf-8"
+            )
+
+    def test_attach_policy_inserts_policy_before_no_resolve(self):
+        self.assertEqual(
+            m_validation.attach_policy("IP-CIDR,192.0.2.1/32,no-resolve", "V3 Static Residential"),
+            "IP-CIDR,192.0.2.1/32,V3 Static Residential,no-resolve",
+        )
+        self.assertEqual(
+            m_validation.attach_policy("IP-CIDR6,2606:4700::1/128,no-resolve", "Proxy"),
+            "IP-CIDR6,2606:4700::1/128,Proxy,no-resolve",
+        )
+        self.assertEqual(
+            m_validation.attach_policy("IP-ASN,64500,no-resolve", "DIRECT"),
+            "IP-ASN,64500,DIRECT,no-resolve",
+        )
+        self.assertEqual(
+            m_validation.attach_policy("DOMAIN-SUFFIX,fixture.example", "DIRECT"),
+            "DOMAIN-SUFFIX,fixture.example,DIRECT",
+        )
+        self.assertEqual(
+            m_validation.attach_policy("DST-PORT,123", "V3 Static Residential"),
+            "DST-PORT,123,V3 Static Residential",
+        )
+
+    def test_dst_port_validation_accepts_ntp_and_rejects_invalid_ranges(self):
+        self.assertEqual(
+            m_validation.validate_provider_rule(
+                "DST-PORT,123",
+                allowed_rule_types=m_policy.PINNED_PROVIDER_RULE_TYPES,
+            ),
+            ["DST-PORT", "123"],
+        )
+        with self.assertRaisesRegex(m_policy.RuleValidationError, "不支持的规则类型"):
+            m_validation.validate_provider_content(
+                "DST-PORT,123\n",
+                "Untrusted dynamic provider",
+            )
+        with self.assertRaisesRegex(m_policy.RuleValidationError, "未知规则类型"):
+            m_validation.validate_routed_rule(
+                "DST-PORT,123,Proxy",
+                "Untrusted Johnshall provider",
+                1,
+                allow_match=True,
+            )
+        m_validation.validate_routed_rule(
+            "DST-PORT,123,V3 Static Residential",
+            "NTP routed fixture",
+            1,
+        )
+        for target in ("0", "65536", "abc", "200-100"):
+            with self.subTest(target=target), self.assertRaises(m_policy.RuleValidationError):
+                m_validation.validate_provider_rule(
+                    f"DST-PORT,{target}",
+                    allowed_rule_types=m_policy.PINNED_PROVIDER_RULE_TYPES,
+                )
+
+    def test_pinned_claude_sources_are_complete_and_policy_compatible(self):
+        groups = m_validation.build_claude_rule_groups()
+        primary = groups["primary_priority"] + groups["network"] + groups["ntp"]
+        legacy = groups["legacy_priority"]
+        official = groups["official_priority"]
+
+        self.assertEqual(len(primary), m_policy.CLAUDE_SCCR2685_RULE_COUNT)
+        self.assertEqual(len(legacy), m_policy.CLAUDE_LEGACY_EXTRA_RULE_COUNT)
+        self.assertEqual(official, ["DOMAIN,registry.npmjs.org"])
+        self.assertEqual(groups["network"], [
+            "IP-CIDR,160.79.104.0/21,no-resolve",
+            "IP-CIDR6,2607:6bc0::/32,no-resolve",
+            "IP-ASN,399358,no-resolve",
+        ])
+        self.assertEqual(groups["ntp"], ["DST-PORT,123"])
+        self.assertEqual(len(primary + legacy + official), 55)
+        self.assertEqual(len(primary + legacy + official), len(set(primary + legacy + official)))
+
+        with mock.patch.object(m_policy, "claude_node", "Different Claude Node"):
+            with self.assertRaisesRegex(m_policy.RuleValidationError, "破坏受保护分流"):
+                m_validation.build_claude_rule_groups()
+
+    def test_pinned_claude_source_digest_rejects_silent_rule_changes(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            altered_path = Path(temporary_dir) / "sccr2685.list"
+            content = m_policy.CLAUDE_SCCR2685_PATH.read_text(encoding="utf-8")
+            altered_path.write_text(
+                content.replace("DOMAIN,api.anthropic.com", "DOMAIN,api.changed.example"),
+                encoding="utf-8",
+            )
+            with mock.patch.object(m_policy, "CLAUDE_SCCR2685_PATH", altered_path):
+                with self.assertRaisesRegex(m_policy.RuleValidationError, "摘要不匹配"):
+                    m_validation.build_claude_rule_groups()
+
+    def test_ip_cidr6_enforces_ipv6_while_legacy_ip_cidr_accepts_both_families(self):
+        self.assertEqual(
+            m_validation.validate_provider_rule("IP-CIDR6,2606:4700::1/128,no-resolve")[0],
+            "IP-CIDR6",
+        )
+        # Historical Johnshall lists sometimes spell IPv6 rules as IP-CIDR.
+        self.assertEqual(
+            m_validation.validate_provider_rule("IP-CIDR,2606:4700::1/128,no-resolve")[0],
+            "IP-CIDR",
+        )
+        m_validation.validate_routed_rule(
+            "IP-CIDR6,2606:4700::1/128,Proxy,no-resolve",
+            "IPv6 routed fixture",
+            1,
+        )
+        with self.assertRaisesRegex(m_policy.RuleValidationError, "IPv6"):
+            m_validation.validate_provider_rule("IP-CIDR6,20.20.20.20/32,no-resolve")
+        with self.assertRaisesRegex(m_policy.RuleValidationError, "IPv6"):
+            m_validation.validate_routed_rule(
+                "IP-CIDR6,20.20.20.20/32,Proxy,no-resolve",
+                "Wrong-family fixture",
+                1,
+            )
+
+    def test_blackmatrix_openai_accepts_audited_as20473_but_rejects_new_sensitive_rules(self):
+        self.assertEqual(
+            m_validation.validate_blackmatrix_openai_content(
+                self.openai_blackmatrix_content,
+                "blackmatrix fixture",
+            ),
+            35,
+        )
+        normalized = [
+            m_validation.normalize_provider_rule(line)
+            for line in m_validation.provider_rule_lines(
+                self.openai_blackmatrix_content,
+                "blackmatrix fixture",
+            )
+        ]
+        self.assertIn("IP-ASN,20473,no-resolve", normalized)
+        self.assertNotIn(
+            "IP-ASN,20473,no-resolve",
+            m_validation.merge_openai_rule_lines(normalized),
+        )
+        with self.assertRaisesRegex(m_policy.RuleValidationError, "重复项"):
+            m_validation.validate_blackmatrix_openai_content(
+                self.openai_blackmatrix_content
+                + "DOMAIN-SUFFIX,OPENAI.COM.\n",
+                "Duplicate blackmatrix fixture",
+            )
+        unsafe_domain_replacements = {
+            "single-label suffix": "DOMAIN-SUFFIX,com",
+            "country public suffix": "DOMAIN-SUFFIX,co.uk",
+            "PSL country public suffix": "DOMAIN-SUFFIX,or.jp",
+            "wildcard PSL bypass": "DOMAIN-SUFFIX,*.or.jp",
+            "protected Apple suffix": "DOMAIN-SUFFIX,apple.com",
+        }
+        for label, replacement in unsafe_domain_replacements.items():
+            unsafe = self.openai_blackmatrix_content.replace(
+                "DOMAIN-SUFFIX,algolia.net",
+                replacement,
+            )
+            with self.subTest(label=label), self.assertRaises(
+                m_policy.RuleValidationError
+            ):
+                m_validation.validate_blackmatrix_openai_content(
+                    unsafe,
+                    f"Unsafe blackmatrix {label}",
+                )
+
+        # Domestic policy relationships are deliberately checked later against
+        # the snapshots selected by the same build, not by this cache-free source
+        # validator.
+        domestic_overlap = self.openai_blackmatrix_content.replace(
+            "DOMAIN-SUFFIX,algolia.net",
+            "DOMAIN-SUFFIX,qq.com",
+        )
+        self.assertEqual(
+            m_validation.validate_blackmatrix_openai_content(
+                domestic_overlap,
+                "blackmatrix domestic-overlap fixture",
+            ),
+            35,
+        )
+
+        invalid = {
+            "new keyword": "DOMAIN-KEYWORD,unreviewed-openai-token\n",
+            "new user agent": "USER-AGENT,*\n",
+            "new network": "IP-CIDR,8.8.8.0/24,no-resolve\n",
+            "new ASN": "IP-ASN,64500,no-resolve\n",
+        }
+        for label, content in invalid.items():
+            with self.subTest(label=label), self.assertRaises(m_policy.RuleValidationError):
+                m_validation.validate_blackmatrix_openai_content(
+                    content,
+                    f"Invalid blackmatrix {label}",
+                    baseline_count=1,
+                )
+
+    def test_metacubex_converts_v2_json_domains_suffixes_and_known_regex(self):
+        converted = m_validation.metacubex_openai_rule_lines(
+            self.openai_metacubex_content
+        )
+        self.assertEqual(len(converted), 23)
+        self.assertIn("DOMAIN,openaiassets.blob.core.windows.net", converted)
+        self.assertIn("DOMAIN-SUFFIX,oaistatsig.com", converted)
+        self.assertIn("DOMAIN-KEYWORD,chatgpt-async-webps-prod-", converted)
+        self.assertEqual(
+            m_validation.validate_metacubex_openai_content(
+                self.openai_metacubex_content,
+                "MetaCubeX fixture",
+            ),
+            23,
+        )
+        unsafe_domain_replacements = {
+            "single-label suffix": '"com"',
+            "country public suffix": '"co.uk"',
+            "PSL country public suffix": '"or.jp"',
+            "wildcard PSL bypass": '"*.or.jp"',
+            "protected Apple suffix": '"apple.com"',
+        }
+        for label, replacement in unsafe_domain_replacements.items():
+            unsafe = self.openai_metacubex_content.replace(
+                '"crixet.com"',
+                replacement,
+            )
+            with self.subTest(label=label), self.assertRaises(
+                m_policy.RuleValidationError
+            ):
+                m_validation.metacubex_openai_rule_lines(
+                    unsafe,
+                    f"Unsafe MetaCubeX {label}",
+                )
+
+        domestic_overlap = self.openai_metacubex_content.replace(
+            '"crixet.com"',
+            '"qq.com"',
+        )
+        self.assertIn(
+            "DOMAIN-SUFFIX,qq.com",
+            m_validation.metacubex_openai_rule_lines(
+                domestic_overlap,
+                "MetaCubeX domestic-overlap fixture",
+            ),
+        )
+
+    def test_metacubex_rejects_schema_drift_duplicate_keys_and_high_impact_rules(self):
+        invalid = {
+            "malformed": '{"version": 2, "rules": [',
+            "nonstandard constant": '{"version": NaN, "rules": []}',
+            "version": '{"version": 3, "rules": [{"domain": "openai.com"}]}',
+            "unknown field": (
+                '{"version": 2, "rules": [{"ip_cidr": "192.0.2.0/24"}]}'
+            ),
+            "regexp": (
+                '{"version": 2, "rules": '
+                '[{"domain_regex": "^unreviewed-[a-z]+\\\\.example$"}]}'
+            ),
+            "keyword": (
+                '{"version": 2, "rules": '
+                '[{"domain_keyword": "unreviewed-openai-token"}]}'
+            ),
+            "duplicate key": (
+                '{"version": 2, "version": 2, '
+                '"rules": [{"domain": "openai.com"}]}'
+            ),
+            "non-string value": (
+                '{"version": 2, "rules": [{"domain": ["openai.com", 7]}]}'
+            ),
+        }
+        for label, content in invalid.items():
+            with self.subTest(label=label), self.assertRaises(m_policy.RuleValidationError):
+                m_validation.metacubex_openai_rule_lines(
+                    content,
+                    f"Invalid MetaCubeX {label}",
+                )
+
+    def test_merge_deduplicates_exact_rules_but_preserves_semantic_overlap(self):
+        merged = m_validation.merge_openai_rule_lines(
+            [
+                "DOMAIN,api.example.com",
+                "DOMAIN-SUFFIX,example.com",
+                "IP-ASN,20473,no-resolve",
+                "DOMAIN,humb.apple.com",
+            ],
+            [
+                "domain,API.EXAMPLE.COM.",
+                "DOMAIN-SUFFIX,EXAMPLE.COM.",
+                "IP-ASN,AS20473,no-resolve",
+                "DOMAIN-SUFFIX,HUMB.APPLE.COM.",
+            ],
+        )
+        self.assertEqual(
+            merged,
+            ["DOMAIN,api.example.com", "DOMAIN-SUFFIX,example.com"],
+        )
+        self.assertEqual(len(merged), len(set(merged)))
+
+    def test_merged_openai_validation_enforces_minimum_and_sentinels(self):
+        with (
+            mock.patch.object(m_policy, "OPENAI_MIN_MERGED_RULES", 3),
+            mock.patch.object(m_policy, "OPENAI_REQUIRED_RULES", set()),
+        ):
+            with self.assertRaisesRegex(m_policy.RuleValidationError, "低于安全下限"):
+                m_validation.validate_merged_openai_rules(
+                    ["DOMAIN,a.example", "DOMAIN,b.example"], []
+                )
+
+        required = {"DOMAIN,required.example", "DOMAIN-SUFFIX,sentinel.example"}
+        with (
+            mock.patch.object(m_policy, "OPENAI_MIN_MERGED_RULES", 1),
+            mock.patch.object(m_policy, "OPENAI_REQUIRED_RULES", required),
+        ):
+            with self.assertRaisesRegex(m_policy.RuleValidationError, "缺少哨兵项"):
+                m_validation.validate_merged_openai_rules(
+                    ["DOMAIN,required.example"], []
+                )
+
+            valid = sorted(required | {"DOMAIN,baseline.example"})
+            self.assertEqual(
+                m_validation.validate_merged_openai_rules(
+                    valid,
+                    ["DOMAIN,required.example", "DOMAIN,baseline.example"],
+                ),
+                3,
+            )
+
+    def test_invalid_online_provider_never_pollutes_valid_cache(self):
+        invalid_responses = {
+            "html": FakeResponse("<!doctype html><html><body>upstream error</body></html>"),
+            "empty": FakeResponse("\n\t\n"),
+            # The cache has four rules; one valid rule is below the permitted 50% floor.
+            "truncated": FakeResponse("DOMAIN-SUFFIX,only-one.example\n"),
+        }
+
+        for label, response in invalid_responses.items():
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as temporary_dir:
+                cache_path = Path(temporary_dir) / "provider.list"
+                cache_path.write_text(self.provider_content, encoding="utf-8")
+                original_bytes = cache_path.read_bytes()
+
+                with mock.patch.object(requests, "get", return_value=response):
+                    is_online, content = m_sources.fetch_or_fallback(
+                        m_policy.openai_blackmatrix_url,
+                        cache_path,
+                        "Fixture provider",
+                        m_validation.validate_provider_content,
+                    )
+
+                self.assertFalse(is_online)
+                self.assertEqual(content, self.provider_content)
+                self.assertEqual(cache_path.read_bytes(), original_bytes)
+
+    def test_download_retries_transient_failure_and_enforces_redirect_and_size(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir)
+            cache_path = root / "provider.list"
+            successful_response = FakeResponse(self.provider_content)
+
+            with (
+                mock.patch.object(
+                    requests,
+                    "get",
+                    side_effect=[
+                        requests.ConnectionError("transient fixture failure"),
+                        successful_response,
+                    ],
+                ) as get_mock,
+                mock.patch.object(m_policy, "SOURCE_DOWNLOAD_ATTEMPTS", 2),
+                mock.patch.object(time, "sleep"),
+            ):
+                is_online, content = m_sources.fetch_or_fallback(
+                    m_policy.openai_blackmatrix_url,
+                    cache_path,
+                    "Fixture provider",
+                    m_validation.validate_provider_content,
+                )
+
+            self.assertTrue(is_online)
+            self.assertEqual(content, self.provider_content)
+            self.assertEqual(get_mock.call_count, 2)
+            self.assertTrue(successful_response.closed)
+
+            redirected = FakeResponse(
+                self.provider_content,
+                url="https://untrusted.example/provider.list",
+            )
+            with (
+                mock.patch.object(requests, "get", return_value=redirected),
+                mock.patch.object(m_policy, "SOURCE_DOWNLOAD_ATTEMPTS", 1),
+            ):
+                is_online, content = m_sources.fetch_or_fallback(
+                    m_policy.openai_blackmatrix_url,
+                    root / "redirected.list",
+                    "Redirect fixture",
+                    m_validation.validate_provider_content,
+                )
+            self.assertFalse(is_online)
+            self.assertIsNone(content)
+            self.assertTrue(redirected.closed)
+
+            oversized = FakeResponse(self.provider_content)
+            with (
+                mock.patch.object(requests, "get", return_value=oversized),
+                mock.patch.object(m_policy, "SOURCE_DOWNLOAD_ATTEMPTS", 1),
+                mock.patch.object(m_policy, "MAX_SOURCE_BYTES", 8),
+            ):
+                is_online, content = m_sources.fetch_or_fallback(
+                    m_policy.openai_blackmatrix_url,
+                    root / "oversized.list",
+                    "Oversized fixture",
+                    m_validation.validate_provider_content,
+                )
+            self.assertFalse(is_online)
+            self.assertIsNone(content)
+            self.assertTrue(oversized.closed)
+
+    def test_independent_sources_download_concurrently_with_stable_result_order(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir)
+            rendezvous = threading.Barrier(2)
+
+            def concurrent_response(url, **kwargs):
+                rendezvous.wait(timeout=2)
+                return FakeResponse(self.provider_content)
+
+            specifications = [
+                (
+                    "first",
+                    m_policy.openai_blackmatrix_url,
+                    root / "first.list",
+                    "Fixture first",
+                    m_validation.validate_provider_content,
+                ),
+                (
+                    "second",
+                    m_policy.openai_blackmatrix_url,
+                    root / "second.list",
+                    "Fixture second",
+                    m_validation.validate_provider_content,
+                ),
+            ]
+            with (
+                mock.patch.object(requests, "get", side_effect=concurrent_response),
+                mock.patch.object(m_policy, "SOURCE_DOWNLOAD_ATTEMPTS", 1),
+            ):
+                results, pending = m_sources.fetch_sources_parallel(specifications)
+
+            self.assertEqual(list(results), ["first", "second"])
+            self.assertTrue(all(is_online for is_online, _ in results.values()))
+            self.assertEqual(
+                [path.name for path, _ in pending],
+                ["first.list", "second.list"],
+            )
+
+    def test_each_dynamic_openai_source_uses_its_own_last_known_good_cache(self):
+        sources = [
+            (
+                m_policy.openai_blackmatrix_url,
+                "OpenAI_blackmatrix7.list",
+                "OpenAI blackmatrix7",
+                m_validation.validate_blackmatrix_openai_content,
+                self.openai_blackmatrix_content,
+            ),
+            (
+                m_policy.openai_metacubex_url,
+                "OpenAI_MetaCubeX.json",
+                "OpenAI MetaCubeX",
+                m_validation.validate_metacubex_openai_content,
+                self.openai_metacubex_content,
+            ),
+        ]
+        for url, filename, source_name, validator, expected in sources:
+            with self.subTest(source=source_name), tempfile.TemporaryDirectory() as temporary_dir:
+                cache_path = Path(temporary_dir) / filename
+                cache_path.write_text(expected, encoding="utf-8")
+                original_bytes = cache_path.read_bytes()
+                pending = []
+                with (
+                    mock.patch.object(
+                        requests,
+                        "get",
+                        side_effect=requests.ConnectionError("fixture offline"),
+                    ),
+                    mock.patch.object(m_policy, "SOURCE_BASELINE_RULE_COUNTS", {}),
+                ):
+                    is_online, content = m_sources.fetch_or_fallback(
+                        url, cache_path, source_name, validator, pending
+                    )
+
+                self.assertFalse(is_online)
+                self.assertEqual(content, expected)
+                self.assertEqual(pending, [])
+                self.assertEqual(cache_path.read_bytes(), original_bytes)
+
+    def test_invalid_online_openai_sources_do_not_pollute_valid_source_caches(self):
+        sources = [
+            (
+                m_policy.openai_blackmatrix_url,
+                "OpenAI_blackmatrix7.list",
+                "OpenAI blackmatrix7",
+                m_validation.validate_blackmatrix_openai_content,
+                self.openai_blackmatrix_content,
+                "DOMAIN-KEYWORD,unreviewed-openai-token\n",
+            ),
+            (
+                m_policy.openai_metacubex_url,
+                "OpenAI_MetaCubeX.json",
+                "OpenAI MetaCubeX",
+                m_validation.validate_metacubex_openai_content,
+                self.openai_metacubex_content,
+                '{"version": 2, "rules": [{"domain_regex": "^unknown$"}]}',
+            ),
+        ]
+        for url, filename, source_name, validator, cached, invalid in sources:
+            with self.subTest(source=source_name), tempfile.TemporaryDirectory() as temporary_dir:
+                cache_path = Path(temporary_dir) / filename
+                cache_path.write_text(cached, encoding="utf-8")
+                original_bytes = cache_path.read_bytes()
+                pending = []
+
+                with mock.patch.object(
+                    requests,
+                    "get",
+                    return_value=FakeResponse(invalid),
+                ):
+                    is_online, content = m_sources.fetch_or_fallback(
+                        url,
+                        cache_path,
+                        source_name,
+                        validator,
+                        pending,
+                    )
+
+                self.assertFalse(is_online)
+                self.assertEqual(content, cached)
+                self.assertEqual(pending, [])
+                self.assertEqual(cache_path.read_bytes(), original_bytes)
+
+    def test_audited_counts_prevent_multi_day_cache_shrink_ratchets(self):
+        blackmatrix_lines = m_validation.provider_rule_lines(
+            self.openai_blackmatrix_content,
+            "blackmatrix ratchet fixture",
+        )
+
+        def metacubex_exact_domains(count):
+            return json.dumps(
+                {
+                    "version": 2,
+                    "rules": [
+                        {
+                            "domain": [
+                                f"openai-ratchet-{index}.example.com"
+                                for index in range(count)
+                            ]
+                        }
+                    ],
+                }
+            )
+
+        sources = [
+            (
+                m_policy.openai_blackmatrix_url,
+                "OpenAI_blackmatrix7.list",
+                "OpenAI blackmatrix7",
+                m_validation.validate_blackmatrix_openai_content,
+                self.openai_blackmatrix_content,
+                "\n".join(blackmatrix_lines[:18]) + "\n",
+                "\n".join(blackmatrix_lines[:10]) + "\n",
+            ),
+            (
+                m_policy.openai_metacubex_url,
+                "OpenAI_MetaCubeX.json",
+                "OpenAI MetaCubeX",
+                m_validation.validate_metacubex_openai_content,
+                self.openai_metacubex_content,
+                metacubex_exact_domains(18),
+                metacubex_exact_domains(10),
+            ),
+        ]
+
+        for url, filename, source_name, validator, initial, first, second in sources:
+            with self.subTest(source=source_name), tempfile.TemporaryDirectory() as temporary_dir:
+                cache_path = Path(temporary_dir) / filename
+                cache_path.write_text(initial, encoding="utf-8")
+
+                with (
+                    mock.patch.object(
+                        requests,
+                        "get",
+                        return_value=FakeResponse(first),
+                    ),
+                    mock.patch.object(m_policy, "SOURCE_DOWNLOAD_ATTEMPTS", 1),
+                ):
+                    is_online, content = m_sources.fetch_or_fallback(
+                        url,
+                        cache_path,
+                        source_name,
+                        validator,
+                    )
+                self.assertTrue(is_online)
+                self.assertEqual(content, first)
+                self.assertEqual(cache_path.read_text(encoding="utf-8"), first)
+
+                with (
+                    mock.patch.object(
+                        requests,
+                        "get",
+                        return_value=FakeResponse(second),
+                    ),
+                    mock.patch.object(m_policy, "SOURCE_DOWNLOAD_ATTEMPTS", 1),
+                ):
+                    is_online, content = m_sources.fetch_or_fallback(
+                        url,
+                        cache_path,
+                        source_name,
+                        validator,
+                    )
+                self.assertFalse(is_online)
+                self.assertEqual(content, first)
+                self.assertEqual(cache_path.read_text(encoding="utf-8"), first)
+
+                with (
+                    mock.patch.object(
+                        requests,
+                        "get",
+                        side_effect=requests.ConnectionError("fixture offline"),
+                    ),
+                    mock.patch.object(m_policy, "SOURCE_DOWNLOAD_ATTEMPTS", 1),
+                ):
+                    is_online, content = m_sources.fetch_or_fallback(
+                        url,
+                        cache_path,
+                        source_name,
+                        validator,
+                    )
+                self.assertFalse(is_online)
+                self.assertEqual(content, first)
+                self.assertEqual(cache_path.read_text(encoding="utf-8"), first)
+
+    def test_online_fixed_inputs_inline_openai_and_preserve_other_policies(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir)
+            output_path = root / "custom.conf"
+            cache_dir = root / "cache"
+            backup_dir = root / "backups"
+            generated_openai_path = root / "audit" / "OpenAI.generated.list"
+            fixed_now = datetime.datetime(2026, 7, 15, 12, 34, 56)
+
+            with self.relaxed_build_context(self.online_response):
+                generated = m_build.build_config(
+                    output_path=output_path,
+                    cache_dir=cache_dir,
+                    backup_dir=backup_dir,
+                    now=fixed_now,
+                    openai_generated_path=generated_openai_path,
+                )
+
+            self.assertEqual(output_path.read_text(encoding="utf-8"), generated)
+            expected_generator_digest = m_storage.generator_source_sha256()
+            self.assertTrue(
+                generated.startswith(
+                    "# BC Shadowrocket generated configuration\n"
+                    "# Generator: update_rules.py "
+                    f"sha256={expected_generator_digest}\n"
+                )
+            )
+            expected_backup = backup_dir / "custom_rules_20260715_123456.conf"
+            self.assertEqual(expected_backup.read_text(encoding="utf-8"), generated)
+            self.assertEqual(
+                generated_openai_path.read_text(encoding="utf-8"),
+                (cache_dir / "OpenAI.list").read_text(encoding="utf-8"),
+            )
+            openai_audit = generated_openai_path.read_text(encoding="utf-8")
+            self.assertIn(
+                "# Sources: conservative baseline + official domain overlay + "
+                "blackmatrix7 + MetaCubeX",
+                openai_audit,
+            )
+            self.assertIn("# Generated: 2026-07-15", openai_audit)
+            self.assertNotIn("Voice creationTime", openai_audit)
+            self.assertNotIn("chatgpt-voice.json", openai_audit)
+            self.assertFalse((cache_dir / "OpenAI_voice.json").exists())
+
+            ordered_markers = [
+                "# Claude SCCR2685 全家桶 (使用节点:",
+                "# Apple & iCloud Services (DIRECT)",
+                "# Claude SCCR2685 NTP 兜底 (使用节点:",
+                "# Tonghuashun (DIRECT)",
+                "# Dongqiudi Ads (REJECT)",
+                "# OpenAI (使用节点:",
+                "# GitHub Copilot & Codex (使用节点:",
+                "# --- Johnshall 去广告与基础代理区块 ---",
+                "# --- 国内常用 APP 及服务 (DIRECT) ---",
+                "# 兜底规则",
+            ]
+            positions = [generated.index(marker) for marker in ordered_markers]
+            self.assertEqual(positions, sorted(positions))
+            _, _, generated_rule_block = m_validation._johnshall_rule_block(
+                generated, "Generated fixture"
+            )
+            first_active_rule = next(
+                line.strip()
+                for line in generated_rule_block.splitlines()
+                if line.strip() and not line.lstrip().startswith("#")
+            )
+            self.assertEqual(
+                first_active_rule,
+                f"DOMAIN,api.anthropic.com,{m_policy.claude_node}",
+            )
+            self.assertLess(
+                generated.index("DOMAIN-SUFFIX,time.apple.com,DIRECT"),
+                generated.index(f"DST-PORT,123,{m_policy.claude_node}"),
+            )
+
+            openai_block = openai_embedded_block(generated)
+            self.assertNotIn("RULE-SET,", openai_block)
+            self.assertNotIn("RULE-SET,", generated)
+            for source_url in (
+                m_policy.openai_blackmatrix_url,
+                m_policy.openai_metacubex_url,
+            ):
+                self.assertNotIn(source_url, generated)
+            self.assertIn(
+                f"DOMAIN-SUFFIX,oaistatsig.com,{m_policy.openai_node}", openai_block
+            )
+            self.assertIn(
+                f"DOMAIN,chat.openai.com,{m_policy.openai_node}", openai_block
+            )
+            self.assertIn(
+                f"DOMAIN-KEYWORD,chatgpt-async-webps-prod-,{m_policy.openai_node}",
+                openai_block,
+            )
+            self.assertNotIn("20.20.20.20/32", openai_block)
+            self.assertNotIn("2606:4700::1/128", openai_block)
+            self.assertIn(
+                f"DOMAIN-SUFFIX,chatgpt.livekit.cloud,{m_policy.openai_node}",
+                openai_block,
+            )
+            self.assertNotIn("IP-ASN,20473", openai_block)
+
+            self.assertEqual(
+                first_embedded_domain_policy(generated, "events.oaistatsig.com"),
+                m_policy.openai_node,
+            )
+            self.assertEqual(
+                first_embedded_domain_policy(generated, "openai.qualtrics.com"),
+                m_policy.openai_node,
+            )
+            # Existing high-priority policies remain first-match compatible.
+            self.assertEqual(first_embedded_domain_policy(generated, "apple.com"), "DIRECT")
+            self.assertEqual(
+                first_embedded_domain_policy(generated, "humb.apple.com"), "DIRECT"
+            )
+            self.assertEqual(
+                first_embedded_domain_policy(
+                    generated,
+                    "ckdatabasews.fe2.apple-dns.net",
+                ),
+                "DIRECT",
+            )
+            self.assertEqual(
+                first_embedded_domain_policy(
+                    generated,
+                    "apple-dns.net.example",
+                ),
+                m_policy.default_node,
+            )
+            for conflicting_rule in (
+                "DOMAIN-SUFFIX,cvws.apple-dns.net,Proxy",
+                "DOMAIN-SUFFIX,news.apple-dns.net,Proxy",
+                "DOMAIN-SUFFIX,gateway.fe.apple-dns.net,Proxy",
+            ):
+                with self.subTest(conflicting_rule=conflicting_rule):
+                    self.assertNotIn(conflicting_rule, generated)
+            self.assertEqual(
+                first_embedded_domain_policy(generated, "quote.10jqka.com.cn"),
+                "DIRECT",
+            )
+            self.assertEqual(
+                first_embedded_domain_policy(generated, "apimg.qunliao.info"),
+                "REJECT",
+            )
+            self.assertEqual(
+                first_embedded_domain_policy(generated, "claude.ai"),
+                m_policy.claude_node,
+            )
+            for hostname in (
+                "storage.googleapis.com",
+                "raw.githubusercontent.com",
+                "registry.npmjs.org",
+                "bridge.claudeusercontent.com",
+            ):
+                with self.subTest(claude_hostname=hostname):
+                    self.assertEqual(
+                        first_embedded_domain_policy(generated, hostname),
+                        m_policy.claude_node,
+                    )
+            self.assertEqual(
+                first_embedded_domain_policy(generated, m_policy.copilot_domains[0]),
+                m_policy.openai_node,
+            )
+            self.assertIn(
+                f"DOMAIN,registry.npmjs.org,{m_policy.claude_node}", generated
+            )
+            self.assertIn(
+                f"IP-ASN,399358,{m_policy.claude_node},no-resolve", generated
+            )
+            self.assertIn(f"DST-PORT,123,{m_policy.claude_node}", generated)
+            self.assertNotIn("# Claude 上游补充规则", generated)
+            self.assertIn(
+                f"DOMAIN,{m_policy.copilot_domains[0]},{m_policy.openai_node}", generated
+            )
+            for name in m_policy.domestic_lists:
+                with self.subTest(domestic=name):
+                    self.assertIn(f"# {name} (在线校验快照内联)", generated)
+            self.assertIn("DOMAIN-SUFFIX,foreign.fixture.example,Proxy", generated)
+            self.assertEqual(generated.count(m_policy.DONGQIUDI_AD_RULE), 1)
+            self.assertEqual(generated.count(m_policy.DONGQIUDI_REWRITE_RULE), 1)
+            self.assertEqual(
+                generated.count(m_policy.DONGQIUDI_LEGACY_REWRITE_RULE),
+                1,
+            )
+            rewrite_pattern, rewrite_action = m_policy.DONGQIUDI_REWRITE_RULE.rsplit(" ", 1)
+            self.assertEqual(rewrite_action, "reject")
+            self.assertIsNotNone(
+                re.match(rewrite_pattern, "https://ap.dongdianqiu.com/plat/v4")
+            )
+            self.assertIsNone(
+                re.match(rewrite_pattern, "https://ap.dongqiudi.com/plat/v")
+            )
+            legacy_pattern, legacy_action = m_policy.DONGQIUDI_LEGACY_REWRITE_RULE.rsplit(
+                " ",
+                1,
+            )
+            self.assertEqual(legacy_action, "reject")
+            self.assertIsNotNone(
+                re.match(legacy_pattern, "https://ap.dongqiudi.com/plat/v4")
+            )
+            self.assertIsNone(
+                re.match(legacy_pattern, "https://ap.dongqiudi.com/plat/v")
+            )
+            self.assertIn(
+                "hostname = ap.dongdianqiu.com,ap.dongqiudi.com,*.google.cn,*.googlevideo.com",
+                generated,
+            )
+            for hostname in m_policy.DONGQIUDI_MITM_HOSTNAMES:
+                with self.subTest(dongqiudi_hostname=hostname):
+                    self.assertNotIn(f"DOMAIN,{hostname},REJECT", generated)
+                    self.assertNotIn(f"DOMAIN-SUFFIX,{hostname},REJECT", generated)
+            self.assertNotIn("hostname = fixture.example", generated)
+            self.assertIn(f"FINAL,{m_policy.default_node}", generated)
+            self.assertEqual(generated.upper().count("\nFINAL,"), 1)
+            self.assertNotIn(",no-resolve,DIRECT", generated)
+            self.assertNotIn(f",no-resolve,{m_policy.openai_node}", generated)
+
+    def test_dongqiudi_rules_deduplicate_matching_upstream_entries(self):
+        modified_johnshall = self.johnshall_content.replace(
+            "[Rule]\n",
+            f"[Rule]\n{m_policy.DONGQIUDI_AD_RULE}\n",
+            1,
+        ).replace(
+            "[URL Rewrite]\n",
+            (
+                f"[URL Rewrite]\n{m_policy.DONGQIUDI_REWRITE_RULE}\n"
+                f"{m_policy.DONGQIUDI_LEGACY_REWRITE_RULE}\n"
+            ),
+            1,
+        ).replace(
+            "hostname = fixture.example",
+            (
+                f"hostname = {m_policy.DONGQIUDI_MITM_HOSTNAME},"
+                f"{m_policy.DONGQIUDI_LEGACY_MITM_HOSTNAME},fixture.example"
+            ),
+            1,
+        )
+
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir)
+
+            def online_response(url, timeout, **kwargs):
+                return self.online_response(
+                    url,
+                    timeout,
+                    modified_johnshall,
+                    **kwargs,
+                )
+
+            with self.relaxed_build_context(online_response):
+                generated = m_build.build_config(
+                    output_path=root / "custom.conf",
+                    cache_dir=root / "cache",
+                    backup_dir=None,
+                    now=datetime.datetime(2026, 7, 15, 12, 34, 56),
+                    openai_generated_path=root / "audit" / "OpenAI.generated.list",
+                )
+
+        self.assertEqual(generated.count(m_policy.DONGQIUDI_AD_RULE), 1)
+        self.assertEqual(generated.count(m_policy.DONGQIUDI_REWRITE_RULE), 1)
+        self.assertEqual(generated.count(m_policy.DONGQIUDI_LEGACY_REWRITE_RULE), 1)
+        hostname_line = next(
+            line for line in generated.splitlines() if line.startswith("hostname = ")
+        )
+        self.assertEqual(hostname_line.count(m_policy.DONGQIUDI_MITM_HOSTNAME), 1)
+        self.assertEqual(
+            hostname_line.count(m_policy.DONGQIUDI_LEGACY_MITM_HOSTNAME),
+            1,
+        )
+
+    def test_semantically_identical_rebuild_skips_timestamp_backup(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir)
+            arguments = {
+                "output_path": root / "custom.conf",
+                "cache_dir": root / "cache",
+                "backup_dir": root / "backups",
+                "openai_generated_path": root / "audit" / "OpenAI.generated.list",
+            }
+
+            with self.relaxed_build_context(self.online_response):
+                m_build.build_config(
+                    **arguments,
+                    now=datetime.datetime(2026, 7, 15, 12, 34, 56),
+                )
+            with self.relaxed_build_context(self.online_response):
+                rebuilt = m_build.build_config(
+                    **arguments,
+                    now=datetime.datetime(2026, 7, 16, 12, 34, 56),
+                )
+
+            backups = list((root / "backups").glob("custom_rules_*.conf"))
+            self.assertEqual(
+                [path.name for path in backups],
+                ["custom_rules_20260715_123456.conf"],
+            )
+            self.assertIn("Apple & iCloud Services (DIRECT) - 2026-07-16", rebuilt)
+
+    def test_backup_can_be_disabled_for_ci(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir)
+            with self.relaxed_build_context(self.online_response):
+                m_build.build_config(
+                    output_path=root / "custom.conf",
+                    cache_dir=root / "cache",
+                    backup_dir=None,
+                    now=datetime.datetime(2026, 7, 15, 12, 34, 56),
+                    openai_generated_path=root / "audit" / "OpenAI.generated.list",
+                )
+
+            self.assertTrue((root / "custom.conf").exists())
+            self.assertFalse((root / "backups").exists())
+
+    def test_fully_offline_complete_cache_inlines_all_openai_and_existing_sources(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir)
+            output_path = root / "custom.conf"
+            cache_dir = root / "cache"
+            backup_dir = root / "backups"
+            generated_openai_path = root / "audit" / "OpenAI.generated.list"
+            self.write_complete_offline_cache(cache_dir)
+
+            offline = requests.ConnectionError("fixture offline")
+            with self.relaxed_build_context(offline):
+                generated = m_build.build_config(
+                    output_path=output_path,
+                    cache_dir=cache_dir,
+                    backup_dir=backup_dir,
+                    now=datetime.datetime(2026, 7, 15, 12, 34, 56),
+                    openai_generated_path=generated_openai_path,
+                )
+
+            self.assertNotIn("RULE-SET,", generated)
+            self.assertNotIn("IP-ASN,20473", generated)
+            self.assertNotIn("20.20.20.20/32", generated)
+            self.assertNotIn("2606:4700::1/128", generated)
+            self.assertIn(
+                f"DOMAIN-SUFFIX,turn.livekit.cloud,{m_policy.openai_node}",
+                generated,
+            )
+            self.assertEqual(
+                generated_openai_path.read_text(encoding="utf-8"),
+                (cache_dir / "OpenAI.list").read_text(encoding="utf-8"),
+            )
+            self.assertIn(
+                "# Generated: 2026-07-15",
+                generated_openai_path.read_text(encoding="utf-8"),
+            )
+            self.assertEqual(
+                first_embedded_domain_policy(generated, "events.oaistatsig.com"),
+                m_policy.openai_node,
+            )
+            self.assertEqual(
+                first_embedded_domain_policy(generated, "unrelatedstatsig.com"),
+                m_policy.default_node,
+            )
+            self.assertEqual(first_embedded_domain_policy(generated, "apple.com"), "DIRECT")
+            self.assertEqual(
+                first_embedded_domain_policy(
+                    generated,
+                    "ckdatabasews.fe2.apple-dns.net",
+                ),
+                "DIRECT",
+            )
+            self.assertEqual(
+                first_embedded_domain_policy(generated, "quote.10jqka.com.cn"),
+                "DIRECT",
+            )
+            self.assertEqual(
+                first_embedded_domain_policy(generated, "claude.ai"),
+                m_policy.claude_node,
+            )
+            self.assertEqual(
+                first_embedded_domain_policy(generated, m_policy.copilot_domains[0]),
+                m_policy.openai_node,
+            )
+            self.assertIn(f"IP-ASN,399358,{m_policy.claude_node},no-resolve", generated)
+            self.assertEqual(
+                generated.count("DOMAIN-SUFFIX,fixture.example,DIRECT"),
+                len(m_policy.domestic_lists),
+            )
+            self.assertEqual(len(m_policy.domestic_lists), 29)
+            for name in m_policy.domestic_lists:
+                with self.subTest(domestic=name):
+                    self.assertIn(f"# {name} (本地缓存快照内联)", generated)
+            self.assertNotIn(",no-resolve,DIRECT", generated)
+            self.assertNotIn(f",no-resolve,{m_policy.openai_node}", generated)
+            self.assertEqual(generated.upper().count("\nFINAL,"), 1)
+
+    def test_missing_online_source_and_cache_fails_without_changing_output(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir)
+            output_path = root / "custom.conf"
+            output_path.write_text("existing known-good config\n", encoding="utf-8")
+            original_bytes = output_path.read_bytes()
+            generated_openai_path = root / "audit" / "OpenAI.generated.list"
+
+            def only_openai_offline(url, timeout, **kwargs):
+                if url in {
+                    m_policy.openai_blackmatrix_url,
+                    m_policy.openai_metacubex_url,
+                }:
+                    raise requests.ConnectionError("fixture OpenAI offline")
+                return self.online_response(url, timeout, **kwargs)
+
+            with self.relaxed_build_context(
+                only_openai_offline
+            ), self.assertRaisesRegex(
+                m_policy.RuleValidationError,
+                "OpenAI blackmatrix7 在线内容和本地缓存都不可用",
+            ):
+                m_build.build_config(
+                    output_path=output_path,
+                    cache_dir=root / "empty-cache",
+                    backup_dir=root / "backups",
+                    now=datetime.datetime(2026, 7, 15, 12, 34, 56),
+                    openai_generated_path=generated_openai_path,
+                )
+
+            self.assertEqual(output_path.read_bytes(), original_bytes)
+            self.assertFalse(generated_openai_path.exists())
+            self.assertEqual(list((root / "backups").glob("*.conf")), [])
+
+    def test_johnshall_rejects_missing_duplicate_and_misordered_sections(self):
+        malformed = {
+            "missing Rule": self.johnshall_content.replace("[Rule]\n", ""),
+            "duplicate Rule": self.johnshall_content.replace(
+                "[URL Rewrite]\n", "[Rule]\n[URL Rewrite]\n"
+            ),
+            "intervening section": self.johnshall_content.replace(
+                "[URL Rewrite]\n", "[Host]\nfixture = 127.0.0.1\n\n[URL Rewrite]\n"
+            ),
+            "misordered sections": self.johnshall_content.replace(
+                "[URL Rewrite]", "[SECTION PLACEHOLDER]"
+            )
+            .replace("[MITM]", "[URL Rewrite]")
+            .replace("[SECTION PLACEHOLDER]", "[MITM]"),
+        }
+
+        for label, content in malformed.items():
+            with self.subTest(label=label), mock.patch.object(
+                m_policy, "MIN_JOHNSHALL_RULES", 1
+            ):
+                with self.assertRaises(m_policy.RuleValidationError):
+                    m_validation.validate_johnshall_content(content, f"Johnshall {label}")
+
+    def test_invalid_online_johnshall_never_pollutes_valid_cache(self):
+        corrupt_content = self.johnshall_content.replace(
+            "DOMAIN-SUFFIX,foreign.fixture.example,Proxy",
+            "DOMAIN,,Proxy",
+        )
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            cache_path = Path(temporary_dir) / "johnshall.conf"
+            cache_path.write_text(self.johnshall_content, encoding="utf-8")
+            original_bytes = cache_path.read_bytes()
+
+            with (
+                mock.patch.object(
+                    requests,
+                    "get",
+                    return_value=FakeResponse(corrupt_content),
+                ),
+                mock.patch.object(m_policy, "MIN_JOHNSHALL_RULES", 1),
+            ):
+                is_online, content = m_sources.fetch_or_fallback(
+                    m_policy.johnshall_url,
+                    cache_path,
+                    "Johnshall fixture",
+                    m_validation.validate_johnshall_content,
+                )
+
+            self.assertFalse(is_online)
+            self.assertEqual(content, self.johnshall_content)
+            self.assertEqual(cache_path.read_bytes(), original_bytes)
+
+    def test_johnshall_transform_handles_normalized_terminator_and_anchored_dns(self):
+        modified_johnshall = self.johnshall_content.replace(
+            "bypass-system = true\n",
+            "bypass-system = true\n# dns-server = comment must remain untouched\n",
+        ).replace("FINAL,Proxy", "  final,Proxy")
+
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir)
+
+            def online_response(url, timeout, **kwargs):
+                return self.online_response(
+                    url,
+                    timeout,
+                    modified_johnshall,
+                    **kwargs,
+                )
+
+            with self.relaxed_build_context(online_response):
+                generated = m_build.build_config(
+                    output_path=root / "custom.conf",
+                    cache_dir=root / "cache",
+                    backup_dir=root / "backups",
+                    now=datetime.datetime(2026, 7, 15, 12, 34, 56),
+                    openai_generated_path=root / "audit" / "OpenAI.generated.list",
+                )
+
+            self.assertEqual(generated.upper().count("\nFINAL,"), 1)
+            self.assertNotIn("# dns-server = comment must remain untouched", generated)
+            self.assertEqual(
+                generated.count(
+                    "dns-server = https://dns.alidns.com/dns-query, https://doh.pub/dns-query"
+                ),
+                1,
+            )
+
+    def test_final_validation_failure_does_not_commit_openai_raw_or_merged_caches(self):
+        modified_johnshall = self.johnshall_content.replace(
+            "bypass-system = true",
+            "bypass-system = false",
+        )
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir)
+            cache_dir = root / "cache"
+            cache_dir.mkdir()
+            output_path = root / "custom.conf"
+            output_path.write_text("known-good\n", encoding="utf-8")
+            generated_openai_path = root / "audit" / "OpenAI.generated.list"
+            generated_openai_path.parent.mkdir()
+
+            existing_files = {
+                cache_dir / "OpenAI_blackmatrix7.list": (
+                    "# old blackmatrix cache sentinel\n"
+                    + self.openai_blackmatrix_content
+                ),
+                cache_dir / "OpenAI_MetaCubeX.json": self.openai_metacubex_content,
+                cache_dir / "OpenAI.list": "old merged cache sentinel\n",
+                generated_openai_path: "old generated audit sentinel\n",
+                cache_dir / "johnshall_latest.conf": self.johnshall_content,
+            }
+            for path, content in existing_files.items():
+                path.write_text(content, encoding="utf-8")
+            original_bytes = {path: path.read_bytes() for path in existing_files}
+
+            def online_response(url, timeout, **kwargs):
+                return self.online_response(
+                    url,
+                    timeout,
+                    modified_johnshall,
+                    **kwargs,
+                )
+
+            with self.relaxed_build_context(online_response), mock.patch.object(
+                m_validation,
+                "validate_generated_config",
+                side_effect=m_policy.RuleValidationError("forced final validation failure"),
+            ):
+                with self.assertRaisesRegex(
+                    m_policy.RuleValidationError,
+                    "forced final validation failure",
+                ):
+                    m_build.build_config(
+                        output_path=output_path,
+                        cache_dir=cache_dir,
+                        backup_dir=root / "backups",
+                        now=datetime.datetime(2026, 7, 15, 12, 34, 56),
+                        openai_generated_path=generated_openai_path,
+                    )
+
+            for path, expected in original_bytes.items():
+                with self.subTest(path=path.name):
+                    self.assertEqual(path.read_bytes(), expected)
+            self.assertEqual(output_path.read_text(encoding="utf-8"), "known-good\n")
+            self.assertEqual(list((root / "backups").glob("*.conf")), [])
+
+    def test_cross_policy_conflicts_fallback_openai_without_polluting_raw_cache(self):
+        johnshall_reject = self.johnshall_content.replace(
+            "[Rule]\n",
+            "[Rule]\nDOMAIN-SUFFIX,doubleclick.net,Reject\n",
+            1,
+        )
+        conflict_cases = {
+            "domain scope": (
+                "DOMAIN-SUFFIX,qq.com",
+                self.provider_content + "DOMAIN-SUFFIX,weixin.qq.com\n",
+                "WeChat",
+                self.johnshall_content,
+                "DOMAIN-SUFFIX,weixin.qq.com,DIRECT",
+            ),
+            "keyword associated scope": (
+                "DOMAIN-SUFFIX,sina.com",
+                self.provider_content + "DOMAIN-KEYWORD,weibo\n",
+                "Weibo",
+                self.johnshall_content,
+                "DOMAIN-KEYWORD,weibo,DIRECT",
+            ),
+            "Johnshall reject scope": (
+                "DOMAIN-SUFFIX,doubleclick.net",
+                None,
+                None,
+                johnshall_reject,
+                "DOMAIN-SUFFIX,doubleclick.net,Reject",
+            ),
+        }
+
+        for label, case in conflict_cases.items():
+            (
+                openai_rule,
+                domestic_content,
+                domestic_name,
+                johnshall_content,
+                preserved_rule,
+            ) = case
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as temporary_dir:
+                root = Path(temporary_dir)
+                cache_dir = root / "custom-cache"
+                cache_dir.mkdir()
+                output_path = root / "custom.conf"
+                generated_openai_path = root / "audit" / "OpenAI.generated.list"
+
+                existing_files = {
+                    cache_dir / "OpenAI_blackmatrix7.list": self.openai_blackmatrix_content,
+                    cache_dir / "OpenAI_MetaCubeX.json": self.openai_metacubex_content,
+                    cache_dir / "OpenAI.list": "old merged cache sentinel\n",
+                }
+                if domestic_name is not None:
+                    existing_files[cache_dir / f"{domestic_name}.list"] = (
+                        self.provider_content
+                    )
+                for path, content in existing_files.items():
+                    path.write_text(content, encoding="utf-8")
+                original_blackmatrix = (
+                    cache_dir / "OpenAI_blackmatrix7.list"
+                ).read_bytes()
+
+                unsafe_blackmatrix = self.openai_blackmatrix_content.replace(
+                    "DOMAIN-SUFFIX,algolia.net",
+                    openai_rule,
+                )
+
+                def conflicting_response(
+                    url,
+                    timeout,
+                    *,
+                    unsafe_blackmatrix=unsafe_blackmatrix,
+                    johnshall_content=johnshall_content,
+                    domestic_name=domestic_name,
+                    domestic_content=domestic_content,
+                    **kwargs,
+                ):
+                    if url == m_policy.openai_blackmatrix_url:
+                        return FakeResponse(unsafe_blackmatrix)
+                    if url == m_policy.johnshall_url:
+                        return FakeResponse(johnshall_content)
+                    if (
+                        domestic_name is not None
+                        and url == m_policy.domestic_lists[domestic_name]
+                    ):
+                        return FakeResponse(domestic_content)
+                    return self.online_response(url, timeout, **kwargs)
+
+                with self.relaxed_build_context(conflicting_response):
+                    generated = m_build.build_config(
+                        output_path=output_path,
+                        cache_dir=cache_dir,
+                        backup_dir=None,
+                        now=datetime.datetime(2026, 7, 15, 12, 34, 56),
+                        openai_generated_path=generated_openai_path,
+                    )
+
+                self.assertEqual(
+                    (cache_dir / "OpenAI_blackmatrix7.list").read_bytes(),
+                    original_blackmatrix,
+                )
+                self.assertNotIn(
+                    m_validation.attach_policy(openai_rule, m_policy.openai_node),
+                    generated,
+                )
+                self.assertIn(preserved_rule, generated)
+                self.assertIn(
+                    "# Generated: 2026-07-15",
+                    generated_openai_path.read_text(encoding="utf-8"),
+                )
+                self.assertEqual(
+                    generated_openai_path.read_text(encoding="utf-8"),
+                    (cache_dir / "OpenAI.list").read_text(encoding="utf-8"),
+                )
+                self.assertGreater(
+                    m_validation.validate_generated_config(generated, min_rule_count=1),
+                    1,
+                )
+
+    def test_provider_rejects_invalid_domain_cidr_address_family_and_asn(self):
+        invalid_rules = {
+            "domain": "DOMAIN-SUFFIX,bad domain.example\n",
+            "cidr": "IP-CIDR,999.0.0.1/32,no-resolve\n",
+            "cidr6 family": "IP-CIDR6,20.20.20.20/32,no-resolve\n",
+            "asn": "IP-ASN,not-an-asn,no-resolve\n",
+        }
+        for label, content in invalid_rules.items():
+            with self.subTest(label=label):
+                with self.assertRaises(m_policy.RuleValidationError):
+                    m_validation.validate_provider_content(content, f"Invalid {label}")
+
+    def test_final_config_rejects_every_runtime_ruleset(self):
+        config = self.johnshall_content.replace(
+            "[Rule]\n",
+            "[Rule]\nRULE-SET,https://raw.githubusercontent.com/example/rules/main/list,DIRECT\n",
+            1,
+        )
+        with self.assertRaisesRegex(m_policy.RuleValidationError, "禁止运行时 RULE-SET"):
+            m_validation.validate_generated_config(config, min_rule_count=1)
+
+    def test_monitored_sources_reuse_strict_generator_validators(self):
+        with self.relaxed_build_context(self.online_response), mock.patch.object(
+            m_validation,
+            "read_text_strict",
+            side_effect=AssertionError("monitor must not read local caches"),
+        ):
+            results = m_build.validate_monitored_sources()
+
+        self.assertGreaterEqual(results["Johnshall"], 1)
+        self.assertEqual(results["OpenAI blackmatrix7"], 35)
+        self.assertEqual(results["OpenAI MetaCubeX"], 23)
+
+        def invalid_metacubex_response(url, timeout, **kwargs):
+            if url == m_policy.openai_metacubex_url:
+                return FakeResponse(
+                    '{"version": 2, "version": 2, "rules": []}',
+                    content_type="application/json; charset=utf-8",
+                )
+            return self.online_response(url, timeout, **kwargs)
+
+        with self.relaxed_build_context(invalid_metacubex_response):
+            with self.assertRaisesRegex(m_policy.RuleValidationError, "JSON 含重复键"):
+                m_build.validate_monitored_sources()
+
+    def test_daily_workflow_generates_validates_and_commits_the_config(self):
+        workflow_path = m_policy.REPOSITORY_DIR / ".github/workflows/update-rules.yml"
+        workflow = workflow_path.read_text(encoding="utf-8")
+
+        self.assertIn("cron: '8 0 * * *'", workflow)
+        self.assertRegex(
+            workflow,
+            r"push:\s+branches:\s+- main\s+paths:\s+- 'update_rules\.py'",
+        )
+        generate_command = "python update_rules.py --no-backup"
+        validate_command = (
+            "python update_rules.py --validate-config custom_shadowrocket_rules.conf"
+        )
+        self.assertEqual(workflow.count(generate_command), 1)
+        self.assertEqual(workflow.count(validate_command), 1)
+        self.assertLess(workflow.index(generate_command), workflow.index(validate_command))
+        self.assertRegex(
+            workflow,
+            r"file_pattern:.*custom_shadowrocket_rules\.conf",
+        )
+
+        monitor_path = m_policy.REPOSITORY_DIR / ".github/workflows/monitor-rules.yml"
+        monitor = monitor_path.read_text(encoding="utf-8")
+        monitor_command = "python update_rules.py --validate-monitored-sources"
+        self.assertEqual(monitor.count(monitor_command), 1)
+        self.assertIn("actions/checkout@", monitor)
+        self.assertIn("actions/setup-python@", monitor)
+        self.assertIn("pip install --requirement requirements.txt", monitor)
+        self.assertNotIn("curl ", monitor)
+        self.assertNotIn("VPSDance/ai-proxy-rules", monitor)
+        self.assertNotIn("v2fly/domain-list-community", monitor)
+
+    def test_multi_file_publish_failure_rolls_back_every_target(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            root = Path(temporary_dir)
+            created_target = root / "new-cache.list"
+            first_target = root / "existing-cache.list"
+            second_target = root / "custom.conf"
+            first_target.write_text("old cache\n", encoding="utf-8")
+            second_target.write_text("old config\n", encoding="utf-8")
+
+            real_replace = os.replace
+            publish_count = 0
+
+            def fail_third_publish(source, target):
+                nonlocal publish_count
+                if str(source).endswith(".publish.tmp"):
+                    publish_count += 1
+                    if publish_count == 3:
+                        raise OSError("forced third publish failure")
+                return real_replace(source, target)
+
+            with mock.patch.object(os, "replace", side_effect=fail_third_publish):
+                with self.assertRaisesRegex(OSError, "forced third publish failure"):
+                    m_storage.transactional_write_text(
+                        [
+                            (created_target, "new cache\n"),
+                            (first_target, "updated cache\n"),
+                            (second_target, "updated config\n"),
+                        ]
+                    )
+
+            self.assertFalse(created_target.exists())
+            self.assertEqual(first_target.read_text(encoding="utf-8"), "old cache\n")
+            self.assertEqual(second_target.read_text(encoding="utf-8"), "old config\n")
+            self.assertEqual(
+                [path.name for path in root.iterdir() if path.name.startswith(".")],
+                [],
+            )
+
+    def test_atomic_replace_failure_preserves_existing_file(self):
+        with tempfile.TemporaryDirectory() as temporary_dir:
+            output_path = Path(temporary_dir) / "custom.conf"
+            output_path.write_text("known-good\n", encoding="utf-8")
+            original_bytes = output_path.read_bytes()
+
+            with mock.patch.object(os, "replace", side_effect=OSError("replace failed")):
+                with self.assertRaisesRegex(OSError, "replace failed"):
+                    m_storage.atomic_write_text(output_path, "new but unpublished\n")
+
+            self.assertEqual(output_path.read_bytes(), original_bytes)
+            self.assertEqual(
+                [path.name for path in output_path.parent.iterdir()],
+                [output_path.name],
+            )
+
+
+    def test_report_tracks_degradation_and_recovery_with_config(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            args = dict(output_path=root / "config.conf", cache_dir=root / "cache",
+                        backup_dir=None, report_path=root / "status.json")
+            with self.relaxed_build_context(self.online_response):
+                m_build.build_config(**args)
+            healthy = json.loads(args["report_path"].read_text())
+            self.assertEqual(healthy["status"], "healthy")
+            self.assertEqual(len(healthy["sources"]), 3 + len(m_policy.domestic_lists))
+            with self.relaxed_build_context(self.offline_response):
+                content = m_build.build_config(**args)
+            degraded = json.loads(args["report_path"].read_text())
+            self.assertEqual(degraded["status"], "degraded")
+            self.assertTrue(all(item["mode"] == "cache" for item in degraded["sources"]))
+            self.assertEqual(degraded["config_sha256"], hashlib.sha256(content.encode()).hexdigest())
+            with self.relaxed_build_context(self.online_response):
+                m_build.build_config(**args)
+            self.assertEqual(json.loads(args["report_path"].read_text())["status"], "healthy")
+
+    def test_report_publish_failure_restores_config_and_all_caches(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            args = dict(output_path=root / "config.conf", cache_dir=root / "cache",
+                        backup_dir=None, report_path=root / "status.json")
+            with self.relaxed_build_context(self.online_response):
+                m_build.build_config(**args)
+            before = {p: p.read_bytes() for p in root.rglob("*") if p.is_file()}
+            replace = os.replace
+            def fail_report(source, target):
+                if Path(target).resolve() == args["report_path"].resolve() and str(source).endswith(".publish.tmp"):
+                    raise OSError("report publish failure")
+                return replace(source, target)
+            with self.relaxed_build_context(self.offline_response), \
+                    mock.patch.object(m_storage.os, "replace", side_effect=fail_report):
+                with self.assertRaisesRegex(OSError, "report publish failure"):
+                    m_build.build_config(**args)
+            self.assertEqual({p: p.read_bytes() for p in root.rglob("*") if p.is_file()}, before)
+
+    def test_upstream_cannot_change_runtime_settings(self):
+        changed = self.johnshall_content.replace("hostname = fixture.example", "hostname = *")
+        changed += "\n[Script]\nmalicious = https://untrusted.invalid/script.js\n"
+        def response(url, timeout, **kwargs):
+            return self.online_response(url, timeout, changed, **kwargs)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with self.relaxed_build_context(response):
+                content = m_build.build_config(output_path=root / "config.conf",
+                                               cache_dir=root / "cache", backup_dir=None)
+            template = (m_policy.REPOSITORY_DIR / "templates/base.conf").read_text()
+            self.assertEqual(m_validation.non_rule_settings(content), m_validation.non_rule_settings(template))
+            self.assertNotIn("untrusted.invalid", content)
+            with self.assertRaisesRegex(m_policy.RuleValidationError, "运行设置偏离"):
+                m_validation.validate_generated_config(content + "\n[Script]\nevil = 1\n", min_rule_count=1)
+
+
+if __name__ == "__main__":
+    unittest.main()

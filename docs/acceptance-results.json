@@ -1,0 +1,602 @@
+{
+  "config_sha256": "d0ea06b1ed1029e2a9497d2a4bba0ed4cddd4bdd933481153daaefc77126fd13",
+  "generator_sha256": "c5a2f723986714786129d1e2a58af84140a494de482333e45afb81e6371d28b5",
+  "sources": 32,
+  "rule_count": 59850,
+  "scenarios": [
+    {
+      "name": "apple.com",
+      "traffic": {
+        "host": "apple.com"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,apple.com,DIRECT"
+    },
+    {
+      "name": "icloud.com",
+      "traffic": {
+        "host": "icloud.com"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,icloud.com,DIRECT"
+    },
+    {
+      "name": "ckdatabasews.fe2.apple-dns.net",
+      "traffic": {
+        "host": "ckdatabasews.fe2.apple-dns.net"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,apple-dns.net,DIRECT"
+    },
+    {
+      "name": "metrics.icloud.com",
+      "traffic": {
+        "host": "metrics.icloud.com"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,icloud.com,DIRECT"
+    },
+    {
+      "name": "www-cdn.icloud.com.akadns.net",
+      "traffic": {
+        "host": "www-cdn.icloud.com.akadns.net"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,www-cdn.icloud.com.akadns.net,DIRECT"
+    },
+    {
+      "name": "apzones.com",
+      "traffic": {
+        "host": "apzones.com"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,apzones.com,DIRECT"
+    },
+    {
+      "name": "icloud.com.cn",
+      "traffic": {
+        "host": "icloud.com.cn"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,icloud.com.cn,DIRECT"
+    },
+    {
+      "name": "quote.10jqka.com.cn",
+      "traffic": {
+        "host": "quote.10jqka.com.cn"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,10jqka.com.cn,DIRECT"
+    },
+    {
+      "name": "hexin.cn",
+      "traffic": {
+        "host": "hexin.cn"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,hexin.cn,DIRECT"
+    },
+    {
+      "name": "wx.qq.com",
+      "traffic": {
+        "host": "wx.qq.com"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,wx.qq.com,DIRECT"
+    },
+    {
+      "name": "zhihu.com",
+      "traffic": {
+        "host": "zhihu.com"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,zhihu.com,DIRECT"
+    },
+    {
+      "name": "weibo.com",
+      "traffic": {
+        "host": "weibo.com"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,weibo.com,DIRECT"
+    },
+    {
+      "name": "douban.com",
+      "traffic": {
+        "host": "douban.com"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,douban.com,DIRECT"
+    },
+    {
+      "name": "douyin.com",
+      "traffic": {
+        "host": "douyin.com"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,douyin.com,DIRECT"
+    },
+    {
+      "name": "bilibili.com",
+      "traffic": {
+        "host": "bilibili.com"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,bilibili.com,DIRECT"
+    },
+    {
+      "name": "xiaohongshu.com",
+      "traffic": {
+        "host": "xiaohongshu.com"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,xiaohongshu.com,DIRECT"
+    },
+    {
+      "name": "music.163.com",
+      "traffic": {
+        "host": "music.163.com"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,music.163.com,DIRECT"
+    },
+    {
+      "name": "ximalaya.com",
+      "traffic": {
+        "host": "ximalaya.com"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,ximalaya.com,DIRECT"
+    },
+    {
+      "name": "jd.com",
+      "traffic": {
+        "host": "jd.com"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,jd.com,DIRECT"
+    },
+    {
+      "name": "pinduoduo.com",
+      "traffic": {
+        "host": "pinduoduo.com"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,pinduoduo.com,DIRECT"
+    },
+    {
+      "name": "goofish.com",
+      "traffic": {
+        "host": "goofish.com"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,goofish.com,DIRECT"
+    },
+    {
+      "name": "smzdm.com",
+      "traffic": {
+        "host": "smzdm.com"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,smzdm.com,DIRECT"
+    },
+    {
+      "name": "meituan.com",
+      "traffic": {
+        "host": "meituan.com"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,meituan.com,DIRECT"
+    },
+    {
+      "name": "cainiao.com",
+      "traffic": {
+        "host": "cainiao.com"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,cainiao.com,DIRECT"
+    },
+    {
+      "name": "alipay.com",
+      "traffic": {
+        "host": "alipay.com"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,alipay.com,DIRECT"
+    },
+    {
+      "name": "cmbchina.com",
+      "traffic": {
+        "host": "cmbchina.com"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,cmbchina.com,DIRECT"
+    },
+    {
+      "name": "icbc.com.cn",
+      "traffic": {
+        "host": "icbc.com.cn"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,icbc.com.cn,DIRECT"
+    },
+    {
+      "name": "ccb.com",
+      "traffic": {
+        "host": "ccb.com"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,ccb.com,DIRECT"
+    },
+    {
+      "name": "eastmoney.com",
+      "traffic": {
+        "host": "eastmoney.com"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,eastmoney.com,DIRECT"
+    },
+    {
+      "name": "didiglobal.com",
+      "traffic": {
+        "host": "didiglobal.com"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,didiglobal.com,DIRECT"
+    },
+    {
+      "name": "ctrip.com",
+      "traffic": {
+        "host": "ctrip.com"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,ctrip.com,DIRECT"
+    },
+    {
+      "name": "12306.cn",
+      "traffic": {
+        "host": "12306.cn"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,12306.cn,DIRECT"
+    },
+    {
+      "name": "baidu.com",
+      "traffic": {
+        "host": "baidu.com"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,baidu.com,DIRECT"
+    },
+    {
+      "name": "10086.cn",
+      "traffic": {
+        "host": "10086.cn"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,10086.cn,DIRECT"
+    },
+    {
+      "name": "189.cn",
+      "traffic": {
+        "host": "189.cn"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,189.cn,DIRECT"
+    },
+    {
+      "name": "115.com",
+      "traffic": {
+        "host": "115.com"
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,115.com,DIRECT"
+    },
+    {
+      "name": "chatgpt.com",
+      "traffic": {
+        "host": "chatgpt.com"
+      },
+      "policy": "V3 Static Residential",
+      "matched_rule": "DOMAIN-SUFFIX,chatgpt.com,V3 Static Residential"
+    },
+    {
+      "name": "chat.openai.com",
+      "traffic": {
+        "host": "chat.openai.com"
+      },
+      "policy": "V3 Static Residential",
+      "matched_rule": "DOMAIN,chat.openai.com,V3 Static Residential"
+    },
+    {
+      "name": "api.openai.com",
+      "traffic": {
+        "host": "api.openai.com"
+      },
+      "policy": "V3 Static Residential",
+      "matched_rule": "DOMAIN-SUFFIX,openai.com,V3 Static Residential"
+    },
+    {
+      "name": "ws.chatgpt.com",
+      "traffic": {
+        "host": "ws.chatgpt.com"
+      },
+      "policy": "V3 Static Residential",
+      "matched_rule": "DOMAIN,ws.chatgpt.com,V3 Static Residential"
+    },
+    {
+      "name": "cdn.oaistatic.com",
+      "traffic": {
+        "host": "cdn.oaistatic.com"
+      },
+      "policy": "V3 Static Residential",
+      "matched_rule": "DOMAIN-SUFFIX,oaistatic.com,V3 Static Residential"
+    },
+    {
+      "name": "files.oaiusercontent.com",
+      "traffic": {
+        "host": "files.oaiusercontent.com"
+      },
+      "policy": "V3 Static Residential",
+      "matched_rule": "DOMAIN-SUFFIX,oaiusercontent.com,V3 Static Residential"
+    },
+    {
+      "name": "events.oaistatsig.com",
+      "traffic": {
+        "host": "events.oaistatsig.com"
+      },
+      "policy": "V3 Static Residential",
+      "matched_rule": "DOMAIN-SUFFIX,oaistatsig.com,V3 Static Residential"
+    },
+    {
+      "name": "chatgpt.livekit.cloud",
+      "traffic": {
+        "host": "chatgpt.livekit.cloud"
+      },
+      "policy": "V3 Static Residential",
+      "matched_rule": "DOMAIN-SUFFIX,chatgpt.livekit.cloud,V3 Static Residential"
+    },
+    {
+      "name": "host.livekit.cloud",
+      "traffic": {
+        "host": "host.livekit.cloud"
+      },
+      "policy": "V3 Static Residential",
+      "matched_rule": "DOMAIN-SUFFIX,host.livekit.cloud,V3 Static Residential"
+    },
+    {
+      "name": "turn.livekit.cloud",
+      "traffic": {
+        "host": "turn.livekit.cloud"
+      },
+      "policy": "V3 Static Residential",
+      "matched_rule": "DOMAIN-SUFFIX,turn.livekit.cloud,V3 Static Residential"
+    },
+    {
+      "name": "openai.qualtrics.com",
+      "traffic": {
+        "host": "openai.qualtrics.com"
+      },
+      "policy": "V3 Static Residential",
+      "matched_rule": "DOMAIN,openai.qualtrics.com,V3 Static Residential"
+    },
+    {
+      "name": "sora.com",
+      "traffic": {
+        "host": "sora.com"
+      },
+      "policy": "V3 Static Residential",
+      "matched_rule": "DOMAIN-SUFFIX,sora.com,V3 Static Residential"
+    },
+    {
+      "name": "api.anthropic.com",
+      "traffic": {
+        "host": "api.anthropic.com"
+      },
+      "policy": "V3 Static Residential",
+      "matched_rule": "DOMAIN,api.anthropic.com,V3 Static Residential"
+    },
+    {
+      "name": "claude.ai",
+      "traffic": {
+        "host": "claude.ai"
+      },
+      "policy": "V3 Static Residential",
+      "matched_rule": "DOMAIN-SUFFIX,claude.ai,V3 Static Residential"
+    },
+    {
+      "name": "claude.com",
+      "traffic": {
+        "host": "claude.com"
+      },
+      "policy": "V3 Static Residential",
+      "matched_rule": "DOMAIN-SUFFIX,claude.com,V3 Static Residential"
+    },
+    {
+      "name": "bridge.claudeusercontent.com",
+      "traffic": {
+        "host": "bridge.claudeusercontent.com"
+      },
+      "policy": "V3 Static Residential",
+      "matched_rule": "DOMAIN,bridge.claudeusercontent.com,V3 Static Residential"
+    },
+    {
+      "name": "downloads.claude.ai",
+      "traffic": {
+        "host": "downloads.claude.ai"
+      },
+      "policy": "V3 Static Residential",
+      "matched_rule": "DOMAIN,downloads.claude.ai,V3 Static Residential"
+    },
+    {
+      "name": "registry.npmjs.org",
+      "traffic": {
+        "host": "registry.npmjs.org"
+      },
+      "policy": "V3 Static Residential",
+      "matched_rule": "DOMAIN,registry.npmjs.org,V3 Static Residential"
+    },
+    {
+      "name": "raw.githubusercontent.com",
+      "traffic": {
+        "host": "raw.githubusercontent.com"
+      },
+      "policy": "V3 Static Residential",
+      "matched_rule": "DOMAIN,raw.githubusercontent.com,V3 Static Residential"
+    },
+    {
+      "name": "storage.googleapis.com",
+      "traffic": {
+        "host": "storage.googleapis.com"
+      },
+      "policy": "V3 Static Residential",
+      "matched_rule": "DOMAIN,storage.googleapis.com,V3 Static Residential"
+    },
+    {
+      "name": "api.githubcopilot.com",
+      "traffic": {
+        "host": "api.githubcopilot.com"
+      },
+      "policy": "V3 Static Residential",
+      "matched_rule": "DOMAIN,api.githubcopilot.com,V3 Static Residential"
+    },
+    {
+      "name": "copilot-proxy.githubusercontent.com",
+      "traffic": {
+        "host": "copilot-proxy.githubusercontent.com"
+      },
+      "policy": "V3 Static Residential",
+      "matched_rule": "DOMAIN,copilot-proxy.githubusercontent.com,V3 Static Residential"
+    },
+    {
+      "name": "notapple-dns.net",
+      "traffic": {
+        "host": "notapple-dns.net"
+      },
+      "policy": "V3(vless+vision+reality)",
+      "matched_rule": "FINAL,V3(vless+vision+reality)"
+    },
+    {
+      "name": "apple-dns.net.example",
+      "traffic": {
+        "host": "apple-dns.net.example"
+      },
+      "policy": "V3(vless+vision+reality)",
+      "matched_rule": "FINAL,V3(vless+vision+reality)"
+    },
+    {
+      "name": "历史 openai 关键词例外",
+      "traffic": {
+        "host": "openai.example"
+      },
+      "policy": "V3 Static Residential",
+      "matched_rule": "DOMAIN-KEYWORD,openai,V3 Static Residential"
+    },
+    {
+      "name": "example.net",
+      "traffic": {
+        "host": "example.net"
+      },
+      "policy": "V3(vless+vision+reality)",
+      "matched_rule": "FINAL,V3(vless+vision+reality)"
+    },
+    {
+      "name": "api.githubcopilot.com.example",
+      "traffic": {
+        "host": "api.githubcopilot.com.example"
+      },
+      "policy": "V3(vless+vision+reality)",
+      "matched_rule": "FINAL,V3(vless+vision+reality)"
+    },
+    {
+      "name": "懂球帝图片广告",
+      "traffic": {
+        "host": "apimg.qunliao.info"
+      },
+      "policy": "REJECT",
+      "matched_rule": "DOMAIN-KEYWORD,apimg.qunliao.info,REJECT"
+    },
+    {
+      "name": "Apple 时间服务优先直连",
+      "traffic": {
+        "host": "time.apple.com",
+        "port": 123
+      },
+      "policy": "DIRECT",
+      "matched_rule": "DOMAIN-SUFFIX,apple.com,DIRECT"
+    },
+    {
+      "name": "历史 NTP 例外",
+      "traffic": {
+        "host": "pool.ntp.org",
+        "port": 123
+      },
+      "policy": "V3 Static Residential",
+      "matched_rule": "DST-PORT,123,V3 Static Residential"
+    },
+    {
+      "name": "Anthropic 自有 IPv4",
+      "traffic": {
+        "ip": "160.79.104.1"
+      },
+      "policy": "V3 Static Residential",
+      "matched_rule": "IP-CIDR,160.79.104.0/21,V3 Static Residential,no-resolve"
+    },
+    {
+      "name": "Anthropic 自有 IPv6",
+      "traffic": {
+        "ip": "2607:6bc0::1"
+      },
+      "policy": "V3 Static Residential",
+      "matched_rule": "IP-CIDR6,2607:6bc0::/32,V3 Static Residential,no-resolve"
+    },
+    {
+      "name": "Anthropic 自有 ASN",
+      "traffic": {
+        "asn": 399358
+      },
+      "policy": "V3 Static Residential",
+      "matched_rule": "IP-ASN,399358,V3 Static Residential,no-resolve"
+    },
+    {
+      "name": "OpenAI 自有 IPv4",
+      "traffic": {
+        "ip": "199.47.142.1"
+      },
+      "policy": "V3 Static Residential",
+      "matched_rule": "IP-CIDR,199.47.142.0/23,V3 Static Residential,no-resolve"
+    },
+    {
+      "name": "OpenAI 自有 IPv6",
+      "traffic": {
+        "ip": "2604:f20::1"
+      },
+      "policy": "V3 Static Residential",
+      "matched_rule": "IP-CIDR6,2604:f20::/32,V3 Static Residential,no-resolve"
+    },
+    {
+      "name": "OpenAI 自有 ASN",
+      "traffic": {
+        "asn": 401518
+      },
+      "policy": "V3 Static Residential",
+      "matched_rule": "IP-ASN,401518,V3 Static Residential,no-resolve"
+    },
+    {
+      "name": "共享 Vultr ASN 不扩大住宅出口",
+      "traffic": {
+        "asn": 20473
+      },
+      "policy": "V3(vless+vision+reality)",
+      "matched_rule": "FINAL,V3(vless+vision+reality)"
+    }
+  ],
+  "migration": {
+    "non_ad_order_preserved": true,
+    "local_direct_additions": [
+      "DOMAIN-SUFFIX,goofish.com,DIRECT"
+    ],
+    "runtime_settings_preserved": true,
+    "old_rule_count": 56187
+  }
+}

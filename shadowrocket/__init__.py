@@ -1,0 +1,1 @@
+"""Personal Shadowrocket configuration builder."""
