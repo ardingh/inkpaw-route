@@ -1,0 +1,22 @@
+{
+  "verified_at": "2026-09-08T01:27:25.845549+00:00",
+  "repository": "https://github.com/ardingh/inkpaw-route",
+  "generated_commit": "4f3d5a5751099bbb9444288b12d7c155a96896cb",
+  "subscription_url": "https://raw.githubusercontent.com/ardingh/inkpaw-route/main/custom_shadowrocket_rules.conf",
+  "config_sha256": "f4c52c50e0aebf90cd19fd0cf338934142ebc114d73ce3b7e5c799a6d4f33d17",
+  "generator_sha256": "c5a2f723986714786129d1e2a58af84140a494de482333e45afb81e6371d28b5",
+  "rule_count": 56007,
+  "source_count": 32,
+  "all_sources_online": true,
+  "source_cache_hashes_verified": true,
+  "scenario_count": 73,
+  "non_ad_rule_order_preserved": true,
+  "extra_domestic_direct": "goofish.com",
+  "runtime_settings_preserved": true,
+  "workflow_state": "active",
+  "schedule_utc": "8 0 * * *",
+  "ci_run": "https://github.com/ardingh/inkpaw-route/actions/runs/34176547729",
+  "update_run": "https://github.com/ardingh/inkpaw-route/actions/runs/34176581260",
+  "alert_script_simulation_scenarios": 5,
+  "alert_simulation_passed": true
+}

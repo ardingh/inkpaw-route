@@ -4,7 +4,7 @@
 
 ## 使用
 
-公开仓库：`ardingh/inkpaw-route`。首次发布验收完成后可订阅：
+公开仓库：`ardingh/inkpaw-route`。已发布并完成远端验收，可直接订阅：
 
 ```text
 https://raw.githubusercontent.com/ardingh/inkpaw-route/main/custom_shadowrocket_rules.conf
