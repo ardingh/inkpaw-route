@@ -1,13 +1,13 @@
-# Routecraft
+# Inkpaw Route
 
 个人分流配置，每天北京时间约 08:08 更新。面向已有两条节点的 Shadowrocket 用户，配置不包含节点地址、密码或证书。
 
 ## 使用
 
-公开仓库：`ardingh/routecraft`。首次发布验收完成后可订阅：
+公开仓库：`ardingh/inkpaw-route`。首次发布验收完成后可订阅：
 
 ```text
-https://raw.githubusercontent.com/ardingh/routecraft/main/custom_shadowrocket_rules.conf
+https://raw.githubusercontent.com/ardingh/inkpaw-route/main/custom_shadowrocket_rules.conf
 ```
 
 1. 保留现在的配置作为回退，在客户端新建远程配置并填入上面的链接。
