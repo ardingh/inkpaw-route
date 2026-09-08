@@ -41,3 +41,4 @@
 - 与原项目相比，全部 131 条住宅节点规则逐条及顺序一致。OpenAI 的兼容列表 47 条、官方补充 29 条、合并去重后 72 条，均与原项目一致；149 个 OpenAI/Copilot/默认出口对照场景的策略和首条命中规则全部相同。证据见 [openai-compatibility.json](openai-compatibility.json)。
 - 40 项测试、73 项成品场景通过，重新生成时 32 来源全部在线。
 - 新订阅路径需在客户端手动更新；新仓库不保留旧文件名入口，原 personal 订阅不变。
+- 品牌统一后的 [CI](https://github.com/ardingh/inkpaw-route/actions/runs/34192266822) 与 [实际自动更新](https://github.com/ardingh/inkpaw-route/actions/runs/34192266832) 成功；公开新订阅与本地成品字节一致，32 份来源缓存及生成器摘要核对通过。新仓库当前文件树已没有旧配置名、旧包路径或旧脚本入口。

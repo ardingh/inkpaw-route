@@ -1,10 +1,10 @@
 {
-  "verified_at": "2026-09-08T01:27:25.845549+00:00",
+  "verified_at": "2026-09-08T05:53:13.414086+00:00",
   "repository": "https://github.com/ardingh/inkpaw-route",
-  "generated_commit": "4f3d5a5751099bbb9444288b12d7c155a96896cb",
-  "subscription_url": "https://raw.githubusercontent.com/ardingh/inkpaw-route/main/custom_shadowrocket_rules.conf",
-  "config_sha256": "f4c52c50e0aebf90cd19fd0cf338934142ebc114d73ce3b7e5c799a6d4f33d17",
-  "generator_sha256": "c5a2f723986714786129d1e2a58af84140a494de482333e45afb81e6371d28b5",
+  "generated_commit": "d7ba0a6d31b5313fb1e46545b578b7305f015ca3",
+  "subscription_url": "https://raw.githubusercontent.com/ardingh/inkpaw-route/main/inkpaw-route.conf",
+  "config_sha256": "3b024d28f79dd8793026d907d7c76d1bab6127ab3572487b39f7916f503c3b41",
+  "generator_sha256": "7eca17090e0213ce76498f12d874d95363fe167ae216da95cd6a2b7eb6c377ec",
   "rule_count": 56007,
   "source_count": 32,
   "all_sources_online": true,
@@ -15,8 +15,10 @@
   "runtime_settings_preserved": true,
   "workflow_state": "active",
   "schedule_utc": "8 0 * * *",
-  "ci_run": "https://github.com/ardingh/inkpaw-route/actions/runs/34176547729",
-  "update_run": "https://github.com/ardingh/inkpaw-route/actions/runs/34176581260",
+  "ci_run": "https://github.com/ardingh/inkpaw-route/actions/runs/34192266822",
+  "update_run": "https://github.com/ardingh/inkpaw-route/actions/runs/34192266832",
   "alert_script_simulation_scenarios": 5,
-  "alert_simulation_passed": true
+  "alert_simulation_passed": true,
+  "branding_commit": "295228e489e103869ddda48bea6918d642629737",
+  "openai_comparison_scenarios": 149
 }
