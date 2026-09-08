@@ -163,7 +163,7 @@ def generator_source_sha256():
     """Return a deterministic provenance fingerprint for the active generator."""
     digest = hashlib.sha256()
     root = Path(__file__).resolve().parent.parent
-    inputs = sorted((root / "shadowrocket").glob("*.py")) + [root / "requirements.txt"]
+    inputs = sorted((root / "inkpaw").glob("*.py")) + [root / "requirements.txt"]
     inputs += sorted((root / "rules").glob("*/*.list"))
     inputs += sorted((root / "templates").glob("*.conf"))
     inputs += sorted((root / "checks").glob("*.json"))

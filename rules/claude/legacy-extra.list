@@ -1,4 +1,4 @@
-# BC Claude pre-SCCR2685 compatibility supplement
+# Inkpaw Route Claude pre-SCCR2685 compatibility supplement
 #
 # These are the 15 unique rules present in the previous generated Claude block
 # but absent as exact rules from SCCR2685. Semantic overlap is retained on

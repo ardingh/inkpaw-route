@@ -934,7 +934,7 @@ def validate_merged_openai_rules(lines, baseline_rules):
 
 def render_openai_provider(lines, generated_on):
     return (
-        "# BC OpenAI merged provider\n"
+        "# Inkpaw Route OpenAI merged provider\n"
         "# Sources: conservative baseline + official domain overlay + "
         "blackmatrix7 + MetaCubeX\n"
         f"# Generated: {generated_on.isoformat()}\n"

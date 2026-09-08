@@ -289,8 +289,8 @@ def build_config(
     )
 
     generator_metadata = (
-        "# BC Shadowrocket generated configuration\n"
-        f"# Generator: update_rules.py sha256={storage.generator_source_sha256()}\n"
+        "# Inkpaw Route generated configuration\n"
+        f"# Generator: inkpaw sha256={storage.generator_source_sha256()}\n"
     )
     new_content = generator_metadata + before_rules + final_rules + after_rules
     validation.validate_generated_config(new_content)
@@ -307,7 +307,7 @@ def build_config(
     )
 
     if backup_dir is not None and semantic_change:
-        backup_path = backup_dir / f"custom_rules_{now.strftime('%Y%m%d_%H%M%S')}.conf"
+        backup_path = backup_dir / f"inkpaw-route_{now.strftime('%Y%m%d_%H%M%S')}.conf"
         publication.append((backup_path, new_content))
     elif backup_dir is not None:
         print("-> 主规则语义未变化，跳过时间戳备份")

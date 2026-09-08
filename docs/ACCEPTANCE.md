@@ -5,7 +5,7 @@
 - 原项目基线：`f5b1e5194e53fdefb69f102bf6200b4e18e8764f`。原仓库没有跟踪文件变化，remote 未改，未推送。
 - `python -m unittest discover -s tests -v`：40 项测试在 Python 3.10（CI 版本）和本机默认 Python 上通过，涵盖原有分流、严格解析、源数量漂移、缓存回退、跨策略冲突、事务回滚；新增 CLI、全部来源监控、降级/恢复、状态写入失败全组回退、上游不能改变运行设置。
 - 实际在线生成成功：32 个来源全部在线，59850 条有效规则。
-- `python -m shadowrocket --audit-config custom_shadowrocket_rules.conf`：73 项通过，覆盖 Apple/CloudKit、中国区、国内应用、AI 登录/内容/通信、Copilot、IPv4/IPv6/ASN、默认路由和历史例外。
+- 首次候选成品的分流场景验收：73 项通过，覆盖 Apple/CloudKit、中国区、国内应用、AI 登录/内容/通信、Copilot、IPv4/IPv6/ASN、默认路由和历史例外。
 - `actionlint v1.7.12`：3 个工作流校验退出码 0。官方发布包的校验和已核对。未全局安装；未运行 shellcheck 集成，工作流 Shell 命令已本地实际执行。
 - 配置和生成器 hash 与 build-status.json 一致。场景证据见 [acceptance-results.json](acceptance-results.json)，对应首次发布候选；日更后看当次 Actions 和 build-status.json。
 
@@ -33,3 +33,11 @@
 - 使用真实预警脚本、模拟 GitHub API 验证 5 种分支：健康无预警、降级创建、持续降级更新、失败不能被旧健康报告掩盖、恢复关闭。全部通过；没有为演练向用户发送虚假故障 Issue。
 
 手机网络、节点质量、登录风控、iCloud 同步和证书信任需要真实客户端观察。本地规则首次命中测试不能替代网络实测。
+
+## 2026-09-08 品牌统一与 OpenAI 复核
+
+- 正式文件统一为 `inkpaw-route.conf`，运行入口为 `python -m inkpaw`；配置标题、生成器标识、规则集标题、时间戳备份及全部工作流同步更新。旧项目原件保持只读。
+- 改名前后全部有效配置行一致；这次没有改变路由、DNS、重写或 MITM 行为。
+- 与原项目相比，全部 131 条住宅节点规则逐条及顺序一致。OpenAI 的兼容列表 47 条、官方补充 29 条、合并去重后 72 条，均与原项目一致；149 个 OpenAI/Copilot/默认出口对照场景的策略和首条命中规则全部相同。证据见 [openai-compatibility.json](openai-compatibility.json)。
+- 40 项测试、73 项成品场景通过，重新生成时 32 来源全部在线。
+- 新订阅路径需在客户端手动更新；新仓库不保留旧文件名入口，原 personal 订阅不变。

@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from shadowrocket import build, cli, policy, sources
+from inkpaw import build, cli, policy, sources
 
 
 class RuntimeTests(unittest.TestCase):
@@ -24,8 +24,8 @@ class RuntimeTests(unittest.TestCase):
             validate.assert_called_once_with("config.conf")
 
     def test_module_entry_point_validates_real_config(self):
-        result = subprocess.run([sys.executable, "-m", "shadowrocket", "--validate-config",
-                                 "custom_shadowrocket_rules.conf"], capture_output=True, text=True)
+        result = subprocess.run([sys.executable, "-m", "inkpaw", "--validate-config",
+                                 "inkpaw-route.conf"], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_journal_reports_actual_selected_content(self):

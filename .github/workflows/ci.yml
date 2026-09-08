@@ -33,7 +33,7 @@ jobs:
         run: python -m unittest discover -s tests -v
 
       - name: 校验仓库内规则文件
-        run: python update_rules.py --validate-config custom_shadowrocket_rules.conf
+        run: python -m inkpaw --validate-config inkpaw-route.conf
 
       - name: 用户分流场景验收
-        run: python -m shadowrocket --audit-config custom_shadowrocket_rules.conf
+        run: python -m inkpaw --audit-config inkpaw-route.conf

@@ -1,4 +1,4 @@
-# BC OpenAI conservative compatibility baseline
+# Inkpaw Route OpenAI conservative compatibility baseline
 # Approved 2026-08-05 from the existing 72-rule output and dual-source migration.
 # The broad rules and legacy /32 entries are intentionally retained.
 # IP-ASN,20473 is intentionally excluded because it covers the shared Vultr ASN.

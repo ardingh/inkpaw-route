@@ -7,7 +7,7 @@
 公开仓库：`ardingh/inkpaw-route`。已发布并完成远端验收，可直接订阅：
 
 ```text
-https://raw.githubusercontent.com/ardingh/inkpaw-route/main/custom_shadowrocket_rules.conf
+https://raw.githubusercontent.com/ardingh/inkpaw-route/main/inkpaw-route.conf
 ```
 
 1. 保留现在的配置作为回退，在客户端新建远程配置并填入上面的链接。
@@ -15,6 +15,8 @@ https://raw.githubusercontent.com/ardingh/inkpaw-route/main/custom_shadowrocket_
 3. 配置仍保留上游的 `Proxy` 策略；它使用客户端选择的代理。请沿用原来的选择。配置不会创建或替换节点。
 4. 使用配置规则模式。依次检查 iCloud 备忘录同步、ChatGPT/Claude 登录与对话、Codex/Copilot、同花顺行情，以及国内应用。
 5. 懂球帝的两条广告接口通过 URL Rewrite 拦截。只有设备已开启 HTTPS 解密并信任自己的证书时，HTTPS 路径拦截才生效；配置不提供共享证书，也不会自动安装证书。
+
+新项目统一使用 `inkpaw-route.conf`，早期同名旧文件入口不再保留。若此前已经导入新仓库的早期链接，请更新为上面的订阅地址。
 
 若新订阅有问题，切回旧配置即可；原 personal 仓库和订阅保持不动。远端单个坏版本可以通过普通 Git revert 后重新生成恢复，不需强制推送或删历史。
 
@@ -47,27 +49,27 @@ Python 3.10 或以上：
 ```sh
 python -m pip install --requirement requirements.txt
 python -m unittest discover -s tests -v
-python -m shadowrocket --no-backup --report build-status.json
-python -m shadowrocket --validate-config custom_shadowrocket_rules.conf
-python -m shadowrocket --audit-config custom_shadowrocket_rules.conf
+python -m inkpaw --no-backup --report build-status.json
+python -m inkpaw --validate-config inkpaw-route.conf
+python -m inkpaw --audit-config inkpaw-route.conf
 ```
 
 只读检查全部在线来源（不使用缓存）：
 
 ```sh
-python -m shadowrocket --validate-monitored-sources
+python -m inkpaw --validate-monitored-sources
 ```
 
 `--output`、`--cache-dir`、`--report` 可指定独立试运行路径。自动更新不产生时间戳备份，由 Git 历史保留成功版本。定时和手动更新串行执行，不强制推送；远端分叉时失败并预警，避免覆盖新提交。
 
 | 目录/模块 | 职责 |
 | --- | --- |
-| shadowrocket/policy.py | 个人策略、来源地址及变化边界 |
-| shadowrocket/validation.py | 格式、数量、跨策略冲突和成品校验 |
-| shadowrocket/sources.py | 有界下载、重试、逐源缓存回退 |
-| shadowrocket/build.py | 选择来源、构建配置及状态报告 |
-| shadowrocket/storage.py | 文件事务和生成器指纹 |
-| shadowrocket/audit.py、checks/traffic.json | 可复现的用户场景首次命中验收 |
+| inkpaw/policy.py | 个人策略、来源地址及变化边界 |
+| inkpaw/validation.py | 格式、数量、跨策略冲突和成品校验 |
+| inkpaw/sources.py | 有界下载、重试、逐源缓存回退 |
+| inkpaw/build.py | 选择来源、构建配置及状态报告 |
+| inkpaw/storage.py | 文件事务和生成器指纹 |
+| inkpaw/audit.py、checks/traffic.json | 可复现的用户场景首次命中验收 |
 | rules/、templates/ | 本地审阅的规则和运行设置 |
 | backups/rules_cache/ | 当前有效来源快照 |
 

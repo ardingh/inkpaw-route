@@ -6,7 +6,7 @@ from . import audit, build, validation
 from . import policy as settings
 
 def parse_args(argv=None):
-    parser = argparse.ArgumentParser(description="构建并校验 Shadowrocket 规则")
+    parser = argparse.ArgumentParser(description="构建并校验 Inkpaw Route 配置（Shadowrocket 格式）")
     validation_modes = parser.add_mutually_exclusive_group()
     validation_modes.add_argument(
         "--validate-config",

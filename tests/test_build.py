@@ -13,11 +13,11 @@ from unittest import mock
 
 import requests
 
-from shadowrocket import policy as m_policy
-from shadowrocket import validation as m_validation
-from shadowrocket import sources as m_sources
-from shadowrocket import storage as m_storage
-from shadowrocket import build as m_build
+from inkpaw import policy as m_policy
+from inkpaw import validation as m_validation
+from inkpaw import sources as m_sources
+from inkpaw import storage as m_storage
+from inkpaw import build as m_build
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -798,12 +798,12 @@ class RuleGeneratorTests(unittest.TestCase):
             expected_generator_digest = m_storage.generator_source_sha256()
             self.assertTrue(
                 generated.startswith(
-                    "# BC Shadowrocket generated configuration\n"
-                    "# Generator: update_rules.py "
+                    "# Inkpaw Route generated configuration\n"
+                    "# Generator: inkpaw "
                     f"sha256={expected_generator_digest}\n"
                 )
             )
-            expected_backup = backup_dir / "custom_rules_20260715_123456.conf"
+            expected_backup = backup_dir / "inkpaw-route_20260715_123456.conf"
             self.assertEqual(expected_backup.read_text(encoding="utf-8"), generated)
             self.assertEqual(
                 generated_openai_path.read_text(encoding="utf-8"),
@@ -1066,10 +1066,10 @@ class RuleGeneratorTests(unittest.TestCase):
                     now=datetime.datetime(2026, 7, 16, 12, 34, 56),
                 )
 
-            backups = list((root / "backups").glob("custom_rules_*.conf"))
+            backups = list((root / "backups").glob("inkpaw-route_*.conf"))
             self.assertEqual(
                 [path.name for path in backups],
-                ["custom_rules_20260715_123456.conf"],
+                ["inkpaw-route_20260715_123456.conf"],
             )
             self.assertIn("Apple & iCloud Services (DIRECT) - 2026-07-16", rebuilt)
 
@@ -1513,23 +1513,23 @@ class RuleGeneratorTests(unittest.TestCase):
         self.assertIn("cron: '8 0 * * *'", workflow)
         self.assertRegex(
             workflow,
-            r"push:\s+branches:\s+- main\s+paths:\s+- 'update_rules\.py'",
+            r"push:\s+branches:\s+- main\s+paths:\s+- 'inkpaw/\*\*'",
         )
-        generate_command = "python update_rules.py --no-backup"
+        generate_command = "python -m inkpaw --no-backup"
         validate_command = (
-            "python update_rules.py --validate-config custom_shadowrocket_rules.conf"
+            "python -m inkpaw --validate-config inkpaw-route.conf"
         )
         self.assertEqual(workflow.count(generate_command), 1)
         self.assertEqual(workflow.count(validate_command), 1)
         self.assertLess(workflow.index(generate_command), workflow.index(validate_command))
         self.assertRegex(
             workflow,
-            r"file_pattern:.*custom_shadowrocket_rules\.conf",
+            r"file_pattern:.*inkpaw-route\.conf",
         )
 
         monitor_path = m_policy.REPOSITORY_DIR / ".github/workflows/monitor-rules.yml"
         monitor = monitor_path.read_text(encoding="utf-8")
-        monitor_command = "python update_rules.py --validate-monitored-sources"
+        monitor_command = "python -m inkpaw --validate-monitored-sources"
         self.assertEqual(monitor.count(monitor_command), 1)
         self.assertIn("actions/checkout@", monitor)
         self.assertIn("actions/setup-python@", monitor)

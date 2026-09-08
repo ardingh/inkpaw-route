@@ -6,8 +6,7 @@ on:
     branches:
       - main
     paths:
-      - 'update_rules.py'
-      - 'shadowrocket/**'
+      - 'inkpaw/**'
       - 'templates/**'
       - 'checks/**'
       - 'requirements.txt'
@@ -59,21 +58,21 @@ jobs:
 
       - name: 执行更新脚本
         run: |
-          python update_rules.py --no-backup --report build-status.json
+          python -m inkpaw --no-backup --report build-status.json
 
       - name: 校验生成后的规则文件
         run: |
-          python update_rules.py --validate-config custom_shadowrocket_rules.conf
+          python -m inkpaw --validate-config inkpaw-route.conf
 
       - name: 用户分流场景验收
-        run: python -m shadowrocket --audit-config custom_shadowrocket_rules.conf
+        run: python -m inkpaw --audit-config inkpaw-route.conf
 
       - name: 自动提交变动 (包含缓存目录)
         uses: stefanzweifel/git-auto-commit-action@4a55954c782fc1ea30b9056cd3e7a2b40ca8887d # v7
         with:
           commit_message: "Auto-update rules and sync cache [skip ci]"
           # CI 依赖 Git 历史，不再新增时间戳备份；只同步最终配置、缓存和审计产物。
-          file_pattern: 'custom_shadowrocket_rules.conf backups/rules_cache/* rules/openai/generated.list build-status.json'
+          file_pattern: 'inkpaw-route.conf backups/rules_cache/* rules/openai/generated.list build-status.json'
           # 如果没有文件变动，不报错也不提交
           skip_dirty_check: false
           commit_user_name: github-actions[bot]

@@ -17,7 +17,7 @@ DEFAULT_CACHE_DIR = Path("backups/rules_cache")
 DEFAULT_BACKUP_DIR = Path("backups")
 
 
-DEFAULT_OUTPUT_PATH = Path("custom_shadowrocket_rules.conf")
+DEFAULT_OUTPUT_PATH = Path("inkpaw-route.conf")
 
 
 REPOSITORY_DIR = Path(__file__).resolve().parent.parent
