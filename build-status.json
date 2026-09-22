@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-21T00:27:23.732578+00:00",
+  "generated_at": "2026-09-22T00:26:28.556032+00:00",
   "status": "healthy",
   "generator_sha256": "7eca17090e0213ce76498f12d874d95363fe167ae216da95cd6a2b7eb6c377ec",
-  "config_sha256": "9a8a06f196f5b47696b0796f6312926a3a36df155b8bf8b45b3be693070cdb65",
+  "config_sha256": "d19c91c0a852120d958cca98e8422bd7ffb261f0efed24bfbc9fc9d31a978b49",
   "sources": [
     {
       "name": "Johnshall",
       "url": "https://johnshall.github.io/Shadowrocket-ADBlock-Rules-Forever/sr_cnip_ad.conf",
       "mode": "online",
-      "sha256": "143296ccb0e474a2b7cfe63e051ba1fbfb5de8e76a44f118ba408d40ddda2622"
+      "sha256": "017189726ef840bc05a5af2fd73f077c3dfcf7720c11f6712930fd783fea06f1"
     },
     {
       "name": "WeChat",
@@ -171,7 +171,7 @@
       "name": "ChinaMobile",
       "url": "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/ChinaMobile/ChinaMobile.list",
       "mode": "online",
-      "sha256": "52350f15a9fca3e992b337043741b7c5d57f5b64a0aa1cf3ea68147bce8b8dcb"
+      "sha256": "8aa8078a08299feee81b6927c4f0ac82b91df9c1ed96012dc5c1e78fa324c8fb"
     },
     {
       "name": "ChinaTelecom",
