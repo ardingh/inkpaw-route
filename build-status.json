@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-10-03T05:08:57.206380+00:00",
+  "generated_at": "2026-10-04T05:42:01.393469+00:00",
   "status": "healthy",
   "generator_sha256": "7eca17090e0213ce76498f12d874d95363fe167ae216da95cd6a2b7eb6c377ec",
-  "config_sha256": "d558a21b55a1ee58253eda966bbfa2e312ae0121b21f3657bef1e92e0bf82560",
+  "config_sha256": "583b35d99895a4054b9267c255f250f4a815582f7845efa2c60dbe9c265eafb6",
   "sources": [
     {
       "name": "Johnshall",
       "url": "https://johnshall.github.io/Shadowrocket-ADBlock-Rules-Forever/sr_cnip_ad.conf",
       "mode": "online",
-      "sha256": "6f6ef68284a8af2626c6d94dfb1ec42036fbbdc4d6cab390fa13a498419204a0"
+      "sha256": "c31ad32da2e588ea727810040c0b34f3747901caf88b663f8f3ee5d4bd3170de"
     },
     {
       "name": "WeChat",
@@ -45,7 +45,7 @@
       "name": "ByteDance",
       "url": "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Shadowrocket/ByteDance/ByteDance.list",
       "mode": "online",
-      "sha256": "d57724eb07b6efbacf4d3cc73fa22a71db20170d6a14aa76d46fba5de105fca2"
+      "sha256": "063f28dd27c03ee361440b2e406de4dcac5554c8711f3430ffbcc5712ba96e3c"
     },
     {
       "name": "DouYin",
