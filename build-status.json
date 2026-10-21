@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-10-20T04:39:15.596196+00:00",
+  "generated_at": "2026-10-21T04:32:46.016443+00:00",
   "status": "healthy",
   "generator_sha256": "7eca17090e0213ce76498f12d874d95363fe167ae216da95cd6a2b7eb6c377ec",
-  "config_sha256": "cee26ea493c00c77652cc56afb63dcaa21e175987e1d577325ceaad0c24b56bb",
+  "config_sha256": "94b9f0a576e27e691d32f47a6931783f21697f571b3b873a73bea4cf729bc01c",
   "sources": [
     {
       "name": "Johnshall",
       "url": "https://johnshall.github.io/Shadowrocket-ADBlock-Rules-Forever/sr_cnip_ad.conf",
       "mode": "online",
-      "sha256": "52a7422753e3d867c4fd59629979fa683fb3fb9fc00c4caa6f96f992006ed953"
+      "sha256": "562326734fcaf24a4ba2f8ec25c4225a7f6c9bc87998e08608e27d881af5d29a"
     },
     {
       "name": "WeChat",
@@ -195,7 +195,7 @@
       "name": "OpenAI MetaCubeX",
       "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/sing/geo/geosite/openai.json",
       "mode": "online",
-      "sha256": "b6fdc258c9af63d68ab3f4d6b3a1d8309851b1dc8d04edba95e0fc7b90261e4d"
+      "sha256": "88534663f0b30ce156200d22c50fea8f9b1944c8314e0fa212850781d90e7114"
     }
   ]
 }
