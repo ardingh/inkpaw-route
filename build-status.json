@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-10-30T05:35:42.784185+00:00",
+  "generated_at": "2026-10-31T05:25:07.040616+00:00",
   "status": "healthy",
   "generator_sha256": "7eca17090e0213ce76498f12d874d95363fe167ae216da95cd6a2b7eb6c377ec",
-  "config_sha256": "d93af950970f13105ff697f3893550a6b3f9886c82cc10cc71ad9fe3e1475898",
+  "config_sha256": "c60ee2a145d9ad75444784810143edef06869632bc028b42fedc124757f6ed98",
   "sources": [
     {
       "name": "Johnshall",
       "url": "https://johnshall.github.io/Shadowrocket-ADBlock-Rules-Forever/sr_cnip_ad.conf",
       "mode": "online",
-      "sha256": "d056103b9a4b150dc9788e6481fbb29581e2c438c6efadedb9c46cb17e53410e"
+      "sha256": "a5de80b6348bd59ffcf9aaff8a029f68f522cf0bf44ab0078c5b2de6bf3e1bac"
     },
     {
       "name": "WeChat",
